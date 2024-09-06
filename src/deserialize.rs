@@ -23,6 +23,7 @@ pub struct RawFieldIterator<'a, T: Deserializable> {
     field: &'a RawField<'a, T>,
     current_position: usize,
     elements_read: usize,
+    current_element: Option<T>
 }
 
 impl<'a, T> RawField<'a, T>
@@ -43,12 +44,13 @@ where
             field: self,
             current_position: 0,
             elements_read: 0,
+           current_element: None,
         }
     }
 }
 
 impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
-    type Item = T;
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.elements_read >= self.field.num_elements {
@@ -58,11 +60,12 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
         let end = self.current_position + self.field.len;
         let value = T::from_bytes(&self.field.raw[self.current_position..end])
             .expect("Failed to deserialize");
+        self.current_element.replace(value);
 
         self.current_position = end;
         self.elements_read += 1;
 
-        Some(value)
+        self.current_element.as_ref()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -74,7 +77,7 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
 impl<'a, T: Deserializable> ExactSizeIterator for RawFieldIterator<'a, T> {}
 
 impl<'a, T: Deserializable> IntoIterator for &'a RawField<'a, T> {
-    type Item = T;
+    type Item = &'a T;
     type IntoIter = RawFieldIterator<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -88,6 +91,7 @@ impl<'a, T: Deserializable> Clone for RawFieldIterator<'a, T> {
             field: self.field,
             current_position: self.current_position,
             elements_read: self.elements_read,
+            current_element: None,
         }
     }
 }
