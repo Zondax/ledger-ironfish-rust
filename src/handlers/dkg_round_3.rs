@@ -30,6 +30,7 @@ use crate::accumulator::accumulate_data;
 use crate::nvm::buffer::{Buffer, BUFFER_SIZE};
 use crate::context::TxContext;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
+use crate::nvm::dkg_keys::DkgKeys;
 use crate::utils::{zlog, zlog_stack};
 
 const MAX_APDU_SIZE: usize = 253;
@@ -63,11 +64,9 @@ pub fn handler_dkg_round_3(
     drop(tx);
     drop(dkg_secret);
 
-    let response = generate_response(&key_package, &public_key_package, &group_secret_key);
-    drop(key_package);
-    drop(public_key_package);
+    save_response(key_package, public_key_package, group_secret_key);
 
-    send_apdu_chunks(comm, &response)
+    Ok(())
 }
 
 #[inline(never)]
@@ -162,15 +161,13 @@ fn compute_dkg_round_3(secret: &Secret, tx: &Tx) -> Result<(KeyPackage, PublicKe
     )
 }
 
-fn generate_response(_key_package: &KeyPackage, public_key_package: &PublicKeyPackage, _group_secret_key: &GroupSecretKey) -> Vec<u8> {
-    let mut resp : Vec<u8> = Vec::new();
-    let mut public_key_package_vec = public_key_package.serialize();
-    let public_key_package_len = public_key_package_vec.len();
-
-    resp.append(&mut [(public_key_package_len >> 8) as u8, (public_key_package_len & 0xFF) as u8].to_vec());
-    resp.append(&mut public_key_package_vec);
-
-    resp
+fn save_response(key_package: KeyPackage, public_key_package: PublicKeyPackage, group_secret_key: GroupSecretKey) {
+    DkgKeys.set_u16(0, 6);
+    let mut pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
+    DkgKeys.set_u16(2, pos as u16);
+    let mut pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
+    DkgKeys.set_u16(4, pos as u16);
+    let mut _pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().as_slice());
 }
 
 fn send_apdu_chunks(comm: &mut Comm, data_vec: &Vec<u8>) -> Result<(), AppSW> {

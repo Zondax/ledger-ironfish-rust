@@ -32,6 +32,7 @@ mod handlers {
 
 mod nvm {
     pub mod buffer;
+    pub mod dkg_keys;
 }
 
 mod context;
