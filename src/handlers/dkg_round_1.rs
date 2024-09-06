@@ -22,7 +22,7 @@ use ironfish_frost::dkg;
 use ironfish_frost::participant::{Identity, Secret};
 use ledger_device_sdk::io::{Comm, Event};
 use crate::accumulator::accumulate_data;
-use crate::buffer::{Buffer, BUFFER_SIZE};
+use crate::nvm::buffer::{Buffer, BUFFER_SIZE};
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
 use crate::context::TxContext;
 use crate::utils::{zlog, zlog_stack};

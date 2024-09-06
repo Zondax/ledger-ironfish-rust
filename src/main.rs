@@ -30,9 +30,12 @@ mod handlers {
     pub mod dkg_round_3;
 }
 
+mod nvm {
+    pub mod buffer;
+}
+
 mod context;
-mod buffer;
-mod accumulator;
+pub mod accumulator;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
