@@ -28,6 +28,7 @@ mod handlers {
     pub mod dkg_round_1;
     pub mod dkg_round_2;
     pub mod dkg_round_3;
+    pub mod dkg_commitment;
 }
 
 mod nvm {
@@ -40,11 +41,12 @@ pub mod accumulator;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
-    get_version::handler_get_version,
     dkg_get_identity::handler_dkg_get_identity,
-    dkg_round_1::{handler_dkg_round_1},
-    dkg_round_2::{handler_dkg_round_2},
-    dkg_round_3::{handler_dkg_round_3},
+    dkg_round_1::handler_dkg_round_1,
+    dkg_round_2::handler_dkg_round_2,
+    dkg_round_3::handler_dkg_round_3,
+    get_version::handler_get_version,
+    dkg_commitment::handler_commitment,
 };
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
 #[cfg(feature = "pending_review_screen")]
@@ -96,6 +98,7 @@ pub enum Instruction {
     DkgRound1 { chunk: u8 },
     DkgRound2 { chunk: u8 },
     DkgRound3 { chunk: u8 },
+    Commitment { chunk: u8 },
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -129,6 +132,11 @@ impl TryFrom<ApduHeader> for Instruction {
             },
             (19, 0..=2, 0) => {
                 Ok(Instruction::DkgRound3 {
+                    chunk: value.p1
+                })
+            },
+            (20, 0..=2, 0) => {
+                Ok(Instruction::Commitment {
                     chunk: value.p1
                 })
             },
@@ -191,5 +199,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound1 { chunk } => handler_dkg_round_1(comm, *chunk, ctx),
         Instruction::DkgRound2 { chunk } => handler_dkg_round_2(comm, *chunk, ctx),
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
+        Instruction::Commitment { chunk } => handler_commitment(comm, *chunk, ctx),
     }
 }
