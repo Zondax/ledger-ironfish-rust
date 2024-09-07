@@ -87,6 +87,8 @@ describe.each(models)('DKG', function (m) {
             let identities: any[] = [];
             let round1s: any[] = [];
             let round2s: any[] = [];
+            let commitments: any[] = [];
+            let signatures: any[] = [];
 
             try {
                 for(let i = 0; i < participants; i++){
@@ -159,6 +161,8 @@ describe.each(models)('DKG', function (m) {
                     });
                 }
 
+                // Craft new tx, to get the tx hash and the public randomness
+                // Pass those values to the following commands
 
                 for(let i = 0; i < participants; i++){
                     const commitment = await runMethod(globalSims, i, async (app: IronfishApp) => {
@@ -175,7 +179,32 @@ describe.each(models)('DKG', function (m) {
                         return commitment
                     });
 
-                    console.log(commitment)
+                    if(!commitment.commitment)
+                        throw new Error("no commitment found")
+
+                    commitments.push(commitment.commitment);
+                }
+
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgSign(
+                            PATH,
+                            "", // pkRandomness
+                            "", // frostSigningPackage
+                            commitments[i].toString("hex")
+                        );
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect(result.signature).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.signature)
+                        throw new Error("no signature found")
+
+                    signatures.push(result.signature);
                 }
             } finally {
                 for (let i = 0; i < globalSims.length; i++)

@@ -55,4 +55,11 @@ impl Buffer {
         let buffer = unsafe { DATA.get_mut() };
         &buffer.get_ref()[start_pos..end_pos]
     }
+
+    #[allow(unused)]
+    pub fn get_u16(&self, start_pos: usize) -> usize {
+        let buffer = unsafe { DATA.get_mut() };
+        let buffer_ref = buffer.get_ref();
+        ((buffer_ref[start_pos] as u16) << 8 | buffer_ref[start_pos+1] as u16) as usize
+    }
 }

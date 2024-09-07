@@ -29,6 +29,7 @@ mod handlers {
     pub mod dkg_round_2;
     pub mod dkg_round_3;
     pub mod dkg_commitment;
+    pub mod dkg_sign;
 }
 
 mod nvm {
@@ -47,6 +48,7 @@ use handlers::{
     dkg_round_3::handler_dkg_round_3,
     get_version::handler_get_version,
     dkg_commitment::handler_dkg_commitment,
+    dkg_sign::handler_dkg_sign,
 };
 
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
@@ -100,6 +102,7 @@ pub enum Instruction {
     DkgRound2 { chunk: u8 },
     DkgRound3 { chunk: u8 },
     DkgCommitment { chunk: u8 },
+    DkgSign { chunk: u8 },
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -138,6 +141,11 @@ impl TryFrom<ApduHeader> for Instruction {
             },
             (20, 0..=2, 0) => {
                 Ok(Instruction::DkgCommitment {
+                    chunk: value.p1
+                })
+            },
+            (21, 0..=2, 0) => {
+                Ok(Instruction::DkgSign {
                     chunk: value.p1
                 })
             },
@@ -201,5 +209,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound2 { chunk } => handler_dkg_round_2(comm, *chunk, ctx),
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
         Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
+        Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
     }
 }
