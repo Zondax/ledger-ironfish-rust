@@ -51,7 +51,7 @@ impl Buffer {
     }
 
     #[allow(unused)]
-    pub fn get_slice(&self, start_pos: usize, end_pos:usize) -> &[u8] {
+    pub fn get_slice(&self, start_pos: usize, end_pos: usize) -> &[u8] {
         let buffer = unsafe { DATA.get_mut() };
         &buffer.get_ref()[start_pos..end_pos]
     }

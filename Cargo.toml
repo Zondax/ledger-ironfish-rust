@@ -5,15 +5,22 @@ authors = ["yhql", "agrojean-ledger"]
 edition = "2021"
 
 [dependencies]
-ledger_device_sdk = { git="https://github.com/Zondax/ledger-device-rust-sdk", rev = "77f872272720f74d0ce850dcf104872b8b1c26f9" }
+ledger_device_sdk = { git = "https://github.com/Zondax/ledger-device-rust-sdk", rev = "77f872272720f74d0ce850dcf104872b8b1c26f9" }
 # ledger_device_sdk = { version="1.14.0" }
 include_gif = "1.2.0"
-serde = {version="1.0.192", default_features = false, features = ["derive"]}
-serde-json-core = { git = "https://github.com/rust-embedded-community/serde-json-core"}
-hex = { version = "0.4.3", default-features = false, features = ["serde", "alloc"] }
+serde = { version = "1.0.192", default_features = false, features = ["derive"] }
+serde-json-core = { git = "https://github.com/rust-embedded-community/serde-json-core" }
+hex = { version = "0.4.3", default-features = false, features = [
+    "serde",
+    "alloc",
+] }
 numtoa = "0.2.4"
 
-ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "eaa86f52d73cb6c2f2cb21f5c1d197549b6ac318", default-features = false, features = ["dkg"]}
+# ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "eaa86f52d73cb6c2f2cb21f5c1d197549b6ac318", default-features = false, features = ["dkg"]}
+ironfish-frost = { path = "../ironfish-frost/", default-features = false, features = [
+    "dkg",
+    "ledger",
+] }
 getrandom = { version = "0.2", features = ["custom"] }
 
 [profile.release]
