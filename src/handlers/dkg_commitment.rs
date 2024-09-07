@@ -17,17 +17,14 @@
 
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
-use ironfish_frost::dkg::round1::PublicPackage;
-use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::frost::keys::KeyPackage;
 use ledger_device_sdk::io::{Comm, Event};
 use crate::accumulator::accumulate_data;
-use crate::nvm::buffer::{Buffer, BUFFER_SIZE};
+use crate::nvm::buffer::{Buffer};
 use crate::context::TxContext;
-use crate::utils::{zlog, zlog_stack};
+use crate::utils::{zlog_stack};
 use ironfish_frost::nonces::deterministic_signing_nonces;
 use ironfish_frost::participant::Identity;
-use serde::Serialize;
 use crate::nvm::dkg_keys::DkgKeys;
 
 const MAX_APDU_SIZE: usize = 253;

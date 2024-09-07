@@ -24,7 +24,6 @@ use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ironfish_frost::error::IronfishFrostError;
 use ironfish_frost::frost::keys::KeyPackage;
-use ironfish_frost::participant::{Secret};
 use ledger_device_sdk::io::{Comm};
 use crate::accumulator::accumulate_data;
 use crate::nvm::buffer::{Buffer};
@@ -114,7 +113,7 @@ fn parse_round_2_public_packages(mut tx_pos: usize)-> (Vec<CombinedPublicPackage
 fn parse_tx() -> (Vec<PublicPackage>, Vec<CombinedPublicPackage>, &'static [u8]){
     zlog_stack("start parse_tx round3\0");
 
-    let mut tx_pos:usize = 1;
+    let tx_pos:usize = 1;
 
     let (round_1_public_packages, tx_pos) = parse_round_1_public_packages(tx_pos);
     let (round_2_public_packages, mut tx_pos) = parse_round_2_public_packages(tx_pos);
@@ -147,7 +146,7 @@ fn compute_dkg_round_3(round_1_public_packages: Vec<PublicPackage>, round_2_publ
 #[inline(never)]
 fn save_response(key_package: KeyPackage, _public_key_package: PublicKeyPackage, _group_secret_key: GroupSecretKey) {
     DkgKeys.set_u16(0, 6);
-    let mut pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
+    let mut _pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
     //DkgKeys.set_u16(2, pos as u16);
     //let mut pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
     //DkgKeys.set_u16(4, pos as u16);

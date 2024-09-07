@@ -1,4 +1,3 @@
-use crate::utils::Bip32Path;
 
 pub struct TxContext {
     pub buffer_pos: usize,

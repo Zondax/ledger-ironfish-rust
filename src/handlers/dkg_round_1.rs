@@ -22,7 +22,7 @@ use ironfish_frost::dkg;
 use ironfish_frost::participant::{Identity, Secret};
 use ledger_device_sdk::io::{Comm, Event};
 use crate::accumulator::accumulate_data;
-use crate::nvm::buffer::{Buffer, BUFFER_SIZE};
+use crate::nvm::buffer::{Buffer};
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
 use crate::context::TxContext;
 use crate::utils::{zlog, zlog_stack};
@@ -70,7 +70,7 @@ fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str>{
         identities.push(identity);
     }
 
-    let min_signers = Buffer.get_element(tx_pos);;
+    let min_signers = Buffer.get_element(tx_pos);
     tx_pos += 1;
 
     if tx_pos != max_buffer_pos {
