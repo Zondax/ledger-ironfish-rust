@@ -35,6 +35,8 @@ const identities  = [
 const ONE_GLOBAL_APP = 0;
 const ONE_APP_PER_PARTICIPANT = 1;
 
+// Reference taken from https://github.com/iron-fish/ironfish/pull/5324/files
+
 describe.each(models)('DKG', function (m) {
     it.skip('can start and stop container', async function () {
         const sim = new Zemu(m.path)
