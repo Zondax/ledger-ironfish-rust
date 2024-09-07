@@ -2,7 +2,7 @@ use ledger_device_sdk::nvm::*;
 use ledger_device_sdk::NVMData;
 
 // This is necessary to store the object in NVM and not in RAM
-pub const DKG_KEYS_MAX_SIZE: usize = 6000;
+pub const DKG_KEYS_MAX_SIZE: usize = 3000;
 #[link_section = ".nvm_data"]
 static mut DATA: NVMData<AlignedStorage<[u8; DKG_KEYS_MAX_SIZE]>> =
     NVMData::new(AlignedStorage::new([0u8; DKG_KEYS_MAX_SIZE]));
@@ -92,6 +92,7 @@ impl DkgKeys {
     #[allow(unused)]
     pub fn get_u16(&self, start_pos: usize) -> usize {
         let buffer = unsafe { DATA.get_mut() };
-        (buffer.get_ref()[start_pos] << 8 | buffer.get_ref()[start_pos+1] ) as usize
+        let buffer_ref = buffer.get_ref();
+        ((buffer_ref[start_pos] as u16) << 8 | buffer_ref[start_pos+1] as u16) as usize
     }
 }
