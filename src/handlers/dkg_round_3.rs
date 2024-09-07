@@ -148,7 +148,9 @@ fn save_response(key_package: KeyPackage, public_key_package: PublicKeyPackage, 
     DkgKeys.set_u16(0, 6);
     let mut pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
     DkgKeys.set_u16(2, pos as u16);
-    let mut pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
+    pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
     DkgKeys.set_u16(4, pos as u16);
-    let mut _pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().as_slice());
+    pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().as_slice());
+
+    // TODO check that last pos is not bigger than dkg_keys buffer
 }
