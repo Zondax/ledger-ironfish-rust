@@ -60,14 +60,20 @@ pub fn handler_commitment(
 }
 
 
+#[inline(never)]
 fn load_key_package() -> KeyPackage{
+    zlog_stack("start load_key_package\0");
+
     let start = DkgKeys.get_u16(0);
     let len = DkgKeys.get_u16(start);
 
     KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
 }
 
+#[inline(never)]
 fn parse_tx(max_buffer_pos: usize) -> (Vec<Identity>, &'static [u8]){
+    zlog_stack("start parse_tx\0");
+
     let mut tx_pos = 0;
     let elements = Buffer.get_element(tx_pos);
     tx_pos +=1;
@@ -85,7 +91,10 @@ fn parse_tx(max_buffer_pos: usize) -> (Vec<Identity>, &'static [u8]){
     (identities, tx_hash)
 }
 
+#[inline(never)]
 fn send_apdu_chunks(comm: &mut Comm, data_vec: Vec<u8>) -> Result<(), AppSW> {
+    zlog_stack("start send_apdu_chunks\0");
+
     let data = data_vec.as_slice();
     let total_chunks = (data.len() + MAX_APDU_SIZE - 1) / MAX_APDU_SIZE;
 
