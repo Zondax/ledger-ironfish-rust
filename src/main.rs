@@ -46,8 +46,9 @@ use handlers::{
     dkg_round_2::handler_dkg_round_2,
     dkg_round_3::handler_dkg_round_3,
     get_version::handler_get_version,
-    dkg_commitment::handler_commitment,
+    dkg_commitment::handler_dkg_commitment,
 };
+
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
 #[cfg(feature = "pending_review_screen")]
 #[cfg(not(any(target_os = "stax", target_os = "flex")))]
@@ -98,7 +99,7 @@ pub enum Instruction {
     DkgRound1 { chunk: u8 },
     DkgRound2 { chunk: u8 },
     DkgRound3 { chunk: u8 },
-    Commitment { chunk: u8 },
+    DkgCommitment { chunk: u8 },
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -136,7 +137,7 @@ impl TryFrom<ApduHeader> for Instruction {
                 })
             },
             (20, 0..=2, 0) => {
-                Ok(Instruction::Commitment {
+                Ok(Instruction::DkgCommitment {
                     chunk: value.p1
                 })
             },
@@ -199,6 +200,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound1 { chunk } => handler_dkg_round_1(comm, *chunk, ctx),
         Instruction::DkgRound2 { chunk } => handler_dkg_round_2(comm, *chunk, ctx),
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
-        Instruction::Commitment { chunk } => handler_commitment(comm, *chunk, ctx),
+        Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
     }
 }

@@ -30,7 +30,7 @@ use crate::nvm::dkg_keys::DkgKeys;
 const MAX_APDU_SIZE: usize = 253;
 
 #[inline(never)]
-pub fn handler_commitment(
+pub fn handler_dkg_commitment(
     comm: &mut Comm,
     chunk: u8,
     ctx: &mut TxContext,
