@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -12,6 +13,12 @@ use crate::utils::zlog_stack;
 /// network streams, or in-memory buffers.
 pub trait Deserializable: Sized {
     fn from_bytes(input: &[u8]) -> Result<Self, ParserError>;
+
+    fn from_bytes_into(input: &[u8], output: &mut Self) -> Result<(), ParserError> {
+        *output = Self::from_bytes(input)?;
+
+        Ok(())
+    }
 
     fn from_bytes_check(input: &[u8]) -> Result<(), ParserError> {
         Self::from_bytes(input).map(|_| ())
@@ -31,7 +38,7 @@ pub struct RawFieldIterator<'a, T: Deserializable> {
     field: &'a RawField<'a, T>,
     current_position: usize,
     elements_read: usize,
-    current_element: Vec<Option<T>>,
+    current_element: Box<Option<T>>,
     _marker: PhantomData<&'a T>,
 }
 
@@ -52,8 +59,9 @@ where
         self.len
     }
 
+    #[inline(never)]
     pub fn iter(&'a self) -> RawFieldIterator<'a, T> {
-        let current_element = vec![None];
+        let current_element = Box::new(None);
         RawFieldIterator {
             field: self,
             current_position: 0,
@@ -67,21 +75,28 @@ where
 impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
     type Item = &'a T;
 
+    #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
         if self.elements_read >= self.field.num_elements {
             return None;
         }
 
         let end = self.current_position + self.field.len;
-        let value = T::from_bytes(&self.field.raw[self.current_position..end]).ok()?;
-        self.current_element[0] = Some(value);
+        let input = &self.field.raw[self.current_position..end];
+
+        if self.current_element.is_none() {
+            *self.current_element = Some(T::from_bytes(input).ok()?);
+        } else {
+            let ptr = &mut *self.current_element;
+            T::from_bytes_into(input, ptr.as_mut().unwrap()).ok()?;
+        }
 
         self.current_position = end;
         self.elements_read += 1;
 
         // SAFETY: This is safe because the reference is valid for the lifetime of self,
         // and we've just set current_element to Some(value)
-        unsafe { Some(&*(self.current_element[0].as_ref().unwrap() as *const T)) }
+        unsafe { Some(&*(self.current_element.as_ref().as_ref().unwrap() as *const T)) }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -96,6 +111,7 @@ impl<'a, T: Deserializable> IntoIterator for &'a RawField<'a, T> {
     type Item = &'a T;
     type IntoIter = RawFieldIterator<'a, T>;
 
+    #[inline(never)]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -105,8 +121,9 @@ impl<'a, T: Deserializable> Clone for RawFieldIterator<'a, T>
 where
     T: Deserializable,
 {
+    #[inline(never)]
     fn clone(&self) -> Self {
-        let current_element = vec![None];
+        let current_element = Box::new(None);
         RawFieldIterator {
             field: self.field,
             current_position: self.current_position,
