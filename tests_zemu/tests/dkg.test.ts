@@ -170,6 +170,7 @@ describe.each(models)('DKG', function (m) {
 
                         expect(i + " " + commitment.returnCode.toString(16)).toEqual(i + " " + "9000")
                         expect(commitment.errorMessage).toEqual('No errors')
+                        expect(commitment.commitment).toBeTruthy()
 
                         return commitment
                     });
