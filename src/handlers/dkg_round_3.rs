@@ -15,6 +15,10 @@
  *  limitations under the License.
  *****************************************************************************/
 
+use core::ptr::addr_of_mut;
+
+use core::mem::MaybeUninit;
+
 use crate::accumulator::accumulate_data;
 use crate::buffer::{Buffer, BUFFER_SIZE};
 use crate::context::TxContext;
@@ -77,8 +81,11 @@ pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     }
 
     // Try to deserialize the transaction
-    let tx: Tx = parse_tx_lazy(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
-    zlog_stack("tx_parsed!\0");
+    // let tx: Tx = parse_tx_lazy(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
+    // zlog_stack("tx_parsed!\0");
+    let mut tx = MaybeUninit::uninit();
+    parse_tx_lazy(ctx.buffer_pos, &mut tx).map_err(|_| AppSW::TxParsingFail)?;
+    let tx = unsafe { tx.assume_init() };
 
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
@@ -128,7 +135,8 @@ fn parse_round<T: Deserializable>(
 }
 
 #[inline(never)]
-fn parse_tx_lazy(max_buffer_pos: usize) -> Result<Tx<'static>, ParserError> {
+// fn parse_tx_lazy(max_buffer_pos: usize) -> Result<Tx<'static>, ParserError> {
+fn parse_tx_lazy(max_buffer_pos: usize, out: &mut MaybeUninit<Tx<'static>>) -> Result<(), ParserError> {
     zlog_stack("start parse_tx_lazy round3\0");
 
     let mut tx_pos: usize = 0;
@@ -171,12 +179,21 @@ fn parse_tx_lazy(max_buffer_pos: usize) -> Result<Tx<'static>, ParserError> {
 
     zlog_stack("***done parse_tx round3\0");
 
-    Ok(Tx {
-        round_2_secret_package,
-        round_1_public_packages,
-        round_2_public_packages,
-        identity_index,
-    })
+    // Ok(Tx {
+    //     round_2_secret_package,
+    //     round_1_public_packages,
+    //     round_2_public_packages,
+    //     identity_index,
+    // })
+    let out = out.as_mut_ptr();
+    unsafe {
+        addr_of_mut!((*out).round_2_secret_package).write(round_2_secret_package);
+        addr_of_mut!((*out).round_1_public_packages).write(round_1_public_packages);
+        addr_of_mut!((*out).round_2_public_packages).write(round_2_public_packages);
+        addr_of_mut!((*out).identity_index).write(identity_index);
+    }
+
+    Ok(())
 }
 
 #[inline(never)]
