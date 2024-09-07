@@ -35,6 +35,7 @@ pub struct Tx {
     min_signers: u8,
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_1(
     comm: &mut Comm,
     chunk: u8,

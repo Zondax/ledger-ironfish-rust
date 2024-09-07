@@ -32,13 +32,7 @@ use crate::nvm::dkg_keys::DkgKeys;
 
 const MAX_APDU_SIZE: usize = 253;
 
-pub struct Tx {
-    identity_index: u8,
-    round_1_public_packages: Vec<PublicPackage>,
-    round_2_public_packages: Vec<CombinedPublicPackage>,
-    round_2_secret_package: Vec<u8>,
-}
-
+#[inline(never)]
 pub fn handler_commitment(
     comm: &mut Comm,
     chunk: u8,
