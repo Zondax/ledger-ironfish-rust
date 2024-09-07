@@ -45,7 +45,7 @@ describe.each(models)('DKG', function (m) {
         }
     })
 
-    describe.each([{p:3, min:2}])('participants', function ({p: participants, min: minSigners}){
+    describe.each([{p:2, min:2}])('participants', function ({p: participants, min: minSigners}){
         it("p: " + participants + " - min: " + minSigners, async function(){
             const checkSimRequired = (sims: Zemu[], i:number): {sim: Zemu, created:boolean} => {
                 let created = false;
@@ -143,7 +143,7 @@ describe.each(models)('DKG', function (m) {
                 }
 
                 for(let i = 0; i < participants; i++){
-                    const round3 = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                    await runMethod(globalSims, i, async (app: IronfishApp) => {
                         let round3 = await app.dkgRound3(
                             PATH,
                             i,
@@ -157,14 +157,24 @@ describe.each(models)('DKG', function (m) {
 
                         return round3
                     });
+                }
 
-                    /*if(!round2.publicPackage || !round2.secretPackage)
-                        throw new Error("no round 1 found")
 
-                    round2s.push({
-                        publicPackage: round2.publicPackage.toString('hex'),
-                        secretPackage: round2.secretPackage.toString('hex')
-                    })*/
+                for(let i = 0; i < participants; i++){
+                    const commitment = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let commitment = await app.dkgGetCommitment(
+                            PATH,
+                            identities,
+                            "760ee307e054e6de63f7d5ee4eac89018f69a0aa56bd15f3b496f3e344991b18"
+                        );
+
+                        expect(i + " " + commitment.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(commitment.errorMessage).toEqual('No errors')
+
+                        return commitment
+                    });
+
+                    console.log(commitment)
                 }
             } finally {
                 for (let i = 0; i < globalSims.length; i++)
