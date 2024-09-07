@@ -51,10 +51,10 @@ pub fn handler_dkg_round_3(
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
 
-    let (key_package, _public_key_package, _group_secret_key)
+    let (key_package, public_key_package, group_secret_key)
         = compute_dkg_round_3(round_1_public_packages, round_2_public_packages, round_2_secret_package).map_err(|_| AppSW::DkgRound3Fail)?;
 
-    save_response(key_package, _public_key_package, _group_secret_key);
+    save_response(key_package, public_key_package, group_secret_key);
 
     Ok(())
 }
@@ -144,11 +144,11 @@ fn compute_dkg_round_3(round_1_public_packages: Vec<PublicPackage>, round_2_publ
 }
 
 #[inline(never)]
-fn save_response(key_package: KeyPackage, _public_key_package: PublicKeyPackage, _group_secret_key: GroupSecretKey) {
+fn save_response(key_package: KeyPackage, public_key_package: PublicKeyPackage, group_secret_key: GroupSecretKey) {
     DkgKeys.set_u16(0, 6);
-    let mut _pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
-    //DkgKeys.set_u16(2, pos as u16);
-    //let mut pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
-    //DkgKeys.set_u16(4, pos as u16);
-    //let mut _pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().as_slice());
+    let mut pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
+    DkgKeys.set_u16(2, pos as u16);
+    let mut pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
+    DkgKeys.set_u16(4, pos as u16);
+    let mut _pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().as_slice());
 }
