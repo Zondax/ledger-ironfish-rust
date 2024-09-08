@@ -47,7 +47,7 @@ extern "C" {
     fn zemu_log(buf: *const u8);
 }
 
-pub fn z_check_app_canary() {
+pub fn canary() {
     unsafe { check_app_canary() }
 }
 
