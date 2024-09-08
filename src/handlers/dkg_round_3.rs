@@ -44,31 +44,24 @@ pub struct Tx<'a> {
     identity_index: u8,
     round_1_public_packages: RawField<'a, PublicPackage>,
     round_2_public_packages: RawField<'a, CombinedPublicPackage>,
-    round_2_secret_package: Vec<u8>,
+    round_2_secret_package: &'a [u8],
 }
 
 impl Deserializable for PublicPackage {
     #[inline(never)]
     fn from_bytes(input: &[u8]) -> Result<Self, ParserError> {
-        zlog_stack("*before_des\0");
-
-        let p = PublicPackage::deserialize_from(input).map_err(|_| {
+        PublicPackage::deserialize_from(input).map_err(|_| {
             zlog_stack("des_error!!!\0");
             ParserError::InvalidPublicPackage
-        })?;
-        zlog_stack("*after_des\0");
-        Ok(p)
+        })
     }
 }
 
 impl Deserializable for CombinedPublicPackage {
     #[inline(never)]
     fn from_bytes(input: &[u8]) -> Result<Self, ParserError> {
-        zlog_stack("before_des\0");
-        let c = CombinedPublicPackage::deserialize_from(input)
-            .map_err(|_| ParserError::InvalidPublicPackage)?;
-        zlog_stack("after_des\0");
-        Ok(c)
+        CombinedPublicPackage::deserialize_from(input)
+            .map_err(|_| ParserError::InvalidPublicPackage)
     }
 }
 
@@ -80,21 +73,18 @@ pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
         return Ok(());
     }
 
-    // Try to deserialize the transaction
-    // let tx: Tx = parse_tx_lazy(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
-    // zlog_stack("tx_parsed!\0");
     let mut tx = MaybeUninit::uninit();
     parse_tx_lazy(ctx.buffer_pos, &mut tx).map_err(|_| AppSW::TxParsingFail)?;
     let tx = unsafe { tx.assume_init() };
+    zlog_stack("tx_parsed!\0");
 
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
 
     let dkg_secret = compute_dkg_secret(tx.identity_index);
     let (key_package, public_key_package, group_secret_key) =
-        compute_dkg_round_3(&dkg_secret, &tx).map_err(|_| AppSW::DkgRound3Fail)?;
+        compute_dkg_round_3(&dkg_secret, tx).map_err(|_| AppSW::DkgRound3Fail)?;
 
-    drop(tx);
     drop(dkg_secret);
 
     let response = generate_response(&key_package, &public_key_package, &group_secret_key);
@@ -111,7 +101,7 @@ fn parse_round<T: Deserializable>(
     num_elements: &mut usize,
     element_len: &mut usize,
 ) -> Result<(&'static [u8], usize), ParserError> {
-    zlog_stack("[[[start parse_round\0");
+    zlog_stack("parse_round\0");
     let elements = Buffer.get_element(tx_pos);
     tx_pos += 1;
 
@@ -128,15 +118,17 @@ fn parse_round<T: Deserializable>(
     *num_elements = elements as usize;
     *element_len = len;
 
-    zlog_stack("done parse_round]]]\0");
     let slice = Buffer.get_slice(start, tx_pos);
+    zlog_stack("done parse_round\0");
 
     Ok((slice, tx_pos))
 }
 
 #[inline(never)]
-// fn parse_tx_lazy(max_buffer_pos: usize) -> Result<Tx<'static>, ParserError> {
-fn parse_tx_lazy(max_buffer_pos: usize, out: &mut MaybeUninit<Tx<'static>>) -> Result<(), ParserError> {
+fn parse_tx_lazy(
+    max_buffer_pos: usize,
+    out: &mut MaybeUninit<Tx<'static>>,
+) -> Result<(), ParserError> {
     zlog_stack("start parse_tx_lazy round3\0");
 
     let mut tx_pos: usize = 0;
@@ -148,43 +140,35 @@ fn parse_tx_lazy(max_buffer_pos: usize, out: &mut MaybeUninit<Tx<'static>>) -> R
     let mut element_len = 0;
 
     let (round_1_public_packages, tx_pos) =
-        parse_round::<PublicPackage>(tx_pos, &mut num_elements, &mut element_len)?;
+        parse_round::<PublicPackage>(tx_pos, &mut num_elements, &mut element_len)
+            .map(|(round1, tx_pos)| (RawField::new(num_elements, element_len, round1), tx_pos))?;
 
-    let round_1_public_packages = RawField::new(num_elements, element_len, round_1_public_packages);
     zlog_stack("round1_packages_parsed\0");
 
-    num_elements = 0;
-    element_len = 0;
-
     let (round_2_public_packages, mut tx_pos) =
-        parse_round::<CombinedPublicPackage>(tx_pos, &mut num_elements, &mut element_len)?;
-    let round_2_public_packages = RawField::new(num_elements, element_len, round_2_public_packages);
+        parse_round::<CombinedPublicPackage>(tx_pos, &mut num_elements, &mut element_len)
+            .map(|(round2, tx_pos)| (RawField::new(num_elements, element_len, round2), tx_pos))?;
+
     zlog_stack("round2_packages_parsed\0");
 
     let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
         as usize;
     tx_pos += 2;
 
-    let round_2_secret_package = Buffer.get_slice(tx_pos, tx_pos + len).to_vec();
+    let round_2_secret_package = Buffer.get_slice(tx_pos, tx_pos + len);
     tx_pos += len;
 
     if tx_pos != max_buffer_pos {
         return Err(ParserError::InvalidPayload);
     }
 
-    // zlog_stack("Check iterator\0");
-    // for _ in round_1_public_packages.iter() {
-    //     zlog_stack("parsed\0");
-    // }
+    zlog_stack("Check iterator\0");
+    for _ in round_1_public_packages.iter().clone().into_iter() {
+        zlog_stack("]]]]->parsed\0");
+    }
 
     zlog_stack("***done parse_tx round3\0");
 
-    // Ok(Tx {
-    //     round_2_secret_package,
-    //     round_1_public_packages,
-    //     round_2_public_packages,
-    //     identity_index,
-    // })
     let out = out.as_mut_ptr();
     unsafe {
         addr_of_mut!((*out).round_2_secret_package).write(round_2_secret_package);
@@ -199,15 +183,15 @@ fn parse_tx_lazy(max_buffer_pos: usize, out: &mut MaybeUninit<Tx<'static>>) -> R
 #[inline(never)]
 fn compute_dkg_round_3(
     secret: &Secret,
-    tx: &Tx,
+    tx: Tx,
 ) -> Result<(KeyPackage, PublicKeyPackage, GroupSecretKey), IronfishFrostError> {
     zlog_stack("compute_dkg_round_3\0");
 
     dkg::round3::round3(
         secret,
-        &tx.round_2_secret_package,
-        &tx.round_1_public_packages,
-        &tx.round_2_public_packages,
+        tx.round_2_secret_package,
+        tx.round_1_public_packages.iter(),
+        tx.round_2_public_packages.iter(),
     )
 }
 
