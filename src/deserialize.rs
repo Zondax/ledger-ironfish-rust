@@ -41,6 +41,7 @@ pub struct RawFieldIterator<'a, T: Deserializable> {
     current_position: usize,
     elements_read: usize,
     current_element: Box<MaybeUninit<T>>,
+    is_initialized: bool,
     _marker: PhantomData<&'a T>,
 }
 
@@ -77,6 +78,7 @@ impl<'a, T: Deserializable> RawFieldIterator<'a, T> {
             current_position: 0,
             elements_read: 0,
             current_element,
+            is_initialized: false,
             _marker: PhantomData,
         }
     }
@@ -86,6 +88,13 @@ impl<'a, T: Deserializable> Drop for RawFieldIterator<'a, T> {
     fn drop(&mut self) {
         // Log the drop event
         zlog_stack("RawFieldIterator_dropped\0");
+
+        unsafe {
+            // Assuming we've added a field to track initialization
+            if self.is_initialized {
+                core::ptr::drop_in_place(self.current_element.as_mut_ptr());
+            }
+        }
     }
 }
 
@@ -101,7 +110,11 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
 
         let input = &self.field.raw[self.current_position..];
 
-        T::from_bytes_into(input, self.current_element.as_mut()).ok()?;
+        let Some(_) = T::from_bytes_into(input, self.current_element.as_mut()).ok() else {
+            self.is_initialized = false;
+            return None;
+        };
+        self.is_initialized = true;
 
         zlog_stack("parsed_ok\0");
 
