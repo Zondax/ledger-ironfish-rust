@@ -20,6 +20,7 @@ numtoa = "0.2.4"
 ironfish-frost = { path = "../ironfish-frost/", default-features = false, features = [
     "dkg",
     "ledger",
+    "signing",
 ] }
 getrandom = { version = "0.2", features = ["custom"] }
 
