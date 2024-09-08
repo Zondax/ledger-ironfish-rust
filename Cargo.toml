@@ -12,6 +12,11 @@ serde = {version="1.0.192", default_features = false, features = ["derive"]}
 serde-json-core = { git = "https://github.com/rust-embedded-community/serde-json-core"}
 hex = { version = "0.4.3", default-features = false, features = ["serde", "alloc"] }
 numtoa = "0.2.4"
+jubjub = { version = "0.10.0", default-features = false }
+blake2b_simd = { version = "1.0.0", default-features = false }
+blake2s_simd = { version = "1.0.0", default-features = false }
+ff = "0.12.0"
+group = "0.12.0"
 
 ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "a484b7a2fd60447f65c8f20006edb2a9415377fb", default-features = false, features = ["dkg", "signing"]}
 #ironfish-frost = { path = "../ironfish-frost", default-features = false, features = ["dkg", "signing"]}

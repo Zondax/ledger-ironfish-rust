@@ -22,6 +22,13 @@ mod utils;
 mod app_ui {
     pub mod menu;
 }
+mod ironfish{
+    pub mod sapling;
+    pub mod constants;
+    pub mod view_keys;
+    pub mod errors;
+}
+
 mod handlers {
     pub mod get_version;
     pub mod dkg_get_identity;
