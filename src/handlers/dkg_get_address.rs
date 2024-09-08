@@ -23,7 +23,7 @@ use ledger_device_sdk::io::{Comm, Event};
 use crate::utils::{zlog_stack};
 use crate::nvm::dkg_keys::DkgKeys;
 
-const _MAX_APDU_SIZE: usize = 253;
+const MAX_APDU_SIZE: usize = 253;
 
 #[inline(never)]
 pub fn handler_dkg_get_address(
