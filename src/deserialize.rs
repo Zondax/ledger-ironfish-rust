@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+use core::mem::MaybeUninit;
 use core::ptr::NonNull;
 
 use crate::error::ParserError;
@@ -12,13 +13,14 @@ use crate::utils::zlog_stack;
 /// It's particularly useful for working with raw byte data, such as when reading from files,
 /// network streams, or in-memory buffers.
 pub trait Deserializable: Sized {
-    fn from_bytes(input: &[u8]) -> Result<Self, ParserError>;
+    fn from_bytes(input: &[u8]) -> Result<Self, ParserError> {
+        let mut output = MaybeUninit::uninit();
+        Self::from_bytes_into(input, &mut output)?;
 
-    fn from_bytes_into(input: &[u8], output: &mut Self) -> Result<(), ParserError> {
-        *output = Self::from_bytes(input)?;
-
-        Ok(())
+        Ok(unsafe { output.assume_init() })
     }
+
+    fn from_bytes_into(input: &[u8], output: &mut MaybeUninit<Self>) -> Result<(), ParserError>;
 
     fn from_bytes_check(input: &[u8]) -> Result<(), ParserError> {
         Self::from_bytes(input).map(|_| ())
@@ -38,7 +40,7 @@ pub struct RawFieldIterator<'a, T: Deserializable> {
     field: &'a RawField<'a, T>,
     current_position: usize,
     elements_read: usize,
-    current_element: Box<Option<T>>,
+    current_element: Box<MaybeUninit<T>>,
     _marker: PhantomData<&'a T>,
 }
 
@@ -68,7 +70,7 @@ where
 
 impl<'a, T: Deserializable> RawFieldIterator<'a, T> {
     pub fn new(field: &'a RawField<'a, T>) -> Self {
-        let current_element = Box::new(None);
+        let current_element = Box::new(MaybeUninit::uninit());
 
         RawFieldIterator {
             field,
@@ -84,13 +86,6 @@ impl<'a, T: Deserializable> Drop for RawFieldIterator<'a, T> {
     fn drop(&mut self) {
         // Log the drop event
         zlog_stack("RawFieldIterator_dropped\0");
-
-        // If you want to log information about the current element:
-        if let Some(ref element) = *self.current_element {
-            zlog_stack("Element_at_drop\0");
-        } else {
-            zlog_stack("No_element_at_drop\0");
-        }
     }
 }
 
@@ -99,26 +94,23 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
 
     #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
+        zlog_stack("next\0");
         if self.elements_read >= self.field.num_elements {
             return None;
         }
 
-        let end = self.current_position + self.field.len;
-        let input = &self.field.raw[self.current_position..end];
+        let input = &self.field.raw[self.current_position..];
 
-        if self.current_element.is_none() {
-            *self.current_element = Some(T::from_bytes(input).ok()?);
-        } else {
-            let ptr = &mut *self.current_element;
-            T::from_bytes_into(input, ptr.as_mut().unwrap()).ok()?;
-        }
+        T::from_bytes_into(input, self.current_element.as_mut()).ok()?;
 
-        self.current_position = end;
+        zlog_stack("parsed_ok\0");
+
+        self.current_position += self.field.len;
         self.elements_read += 1;
 
         // SAFETY: This is safe because the reference is valid for the lifetime of self,
         // and we've just set current_element to Some(value)
-        unsafe { Some(&*(self.current_element.as_ref().as_ref().unwrap() as *const T)) }
+        unsafe { Some(&*(self.current_element.as_ref().assume_init_ref() as *const T)) }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
