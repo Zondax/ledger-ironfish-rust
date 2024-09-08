@@ -61,13 +61,35 @@ where
 
     #[inline(never)]
     pub fn iter(&'a self) -> RawFieldIterator<'a, T> {
+        zlog_stack("RawField::iter\0");
+        RawFieldIterator::new(self)
+    }
+}
+
+impl<'a, T: Deserializable> RawFieldIterator<'a, T> {
+    pub fn new(field: &'a RawField<'a, T>) -> Self {
         let current_element = Box::new(None);
+
         RawFieldIterator {
-            field: self,
+            field,
             current_position: 0,
             elements_read: 0,
             current_element,
             _marker: PhantomData,
+        }
+    }
+}
+
+impl<'a, T: Deserializable> Drop for RawFieldIterator<'a, T> {
+    fn drop(&mut self) {
+        // Log the drop event
+        zlog_stack("RawFieldIterator_dropped\0");
+
+        // If you want to log information about the current element:
+        if let Some(ref element) = *self.current_element {
+            zlog_stack("Element_at_drop\0");
+        } else {
+            zlog_stack("No_element_at_drop\0");
         }
     }
 }
@@ -123,13 +145,6 @@ where
 {
     #[inline(never)]
     fn clone(&self) -> Self {
-        let current_element = Box::new(None);
-        RawFieldIterator {
-            field: self.field,
-            current_position: self.current_position,
-            elements_read: self.elements_read,
-            current_element,
-            _marker: PhantomData,
-        }
+        RawFieldIterator::new(self.field)
     }
 }
