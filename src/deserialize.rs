@@ -39,10 +39,8 @@ pub struct RawField<'a, T> {
 pub struct RawFieldIterator<'a, T: Deserializable> {
     field: &'a RawField<'a, T>,
     current_position: usize,
-    elements_read: usize,
     current_element: Box<MaybeUninit<T>>,
     is_initialized: bool,
-    _marker: PhantomData<&'a T>,
 }
 
 impl<'a, T> RawField<'a, T>
@@ -76,10 +74,8 @@ impl<'a, T: Deserializable> RawFieldIterator<'a, T> {
         RawFieldIterator {
             field,
             current_position: 0,
-            elements_read: 0,
             current_element,
             is_initialized: false,
-            _marker: PhantomData,
         }
     }
 }
@@ -104,7 +100,9 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
     #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
         zlog_stack("next\0");
-        if self.elements_read >= self.field.num_elements {
+
+        let elements_read = self.current_position / self.field.len;
+        if elements_read >= self.field.num_elements {
             return None;
         }
 
@@ -119,7 +117,6 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
         zlog_stack("parsed_ok\0");
 
         self.current_position += self.field.len;
-        self.elements_read += 1;
 
         // SAFETY: This is safe because the reference is valid for the lifetime of self,
         // and we've just set current_element to Some(value)
@@ -127,7 +124,8 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.field.num_elements - self.elements_read;
+        let elements_read = self.current_position / self.field.len;
+        let remaining = self.field.num_elements - elements_read;
         (remaining, Some(remaining))
     }
 }
