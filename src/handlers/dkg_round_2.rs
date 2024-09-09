@@ -26,19 +26,21 @@ use ironfish_frost::dkg;
 use ironfish_frost::dkg::round1::PublicPackage;
 use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::error::IronfishFrostError;
-use ironfish_frost::participant::Secret;
 use ledger_device_sdk::io::{Comm, Event};
-use ledger_device_sdk::random::LedgerRng;
+use crate::accumulator::accumulate_data;
+use crate::nvm::buffer::{Buffer};
+use crate::handlers::dkg_get_identity::compute_dkg_secret;
+use crate::context::TxContext;
+use crate::utils::{zlog_stack};
 
 const MAX_APDU_SIZE: usize = 253;
 
-pub struct Tx {
-    identity_index: u8,
-    round_1_public_packages: Vec<PublicPackage>,
-    round_1_secret_package: Vec<u8>,
-}
-
-pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
+#[inline(never)]
+pub fn handler_dkg_round_2(
+    comm: &mut Comm,
+    chunk: u8,
+    ctx: &mut TxContext,
+) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_2\0");
 
     accumulate_data(comm, chunk, ctx)?;
@@ -46,16 +48,13 @@ pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
         return Ok(());
     }
 
-    // Try to deserialize the transaction
-    let tx: Tx = parse_tx(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
+    let (round_1_public_packages, tx_pos) = parse_round_1_public_packages();
+    let round_1_secret_package = parse_round_1_secret_package(tx_pos);
+
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
 
-    let dkg_secret = compute_dkg_secret(tx.identity_index);
-    let (mut round2_secret_package_vec, round2_public_package) =
-        compute_dkg_round_2(&dkg_secret, &tx).map_err(|_| AppSW::DkgRound2Fail)?;
-    drop(tx);
-    drop(dkg_secret);
+    let (mut round2_secret_package_vec, round2_public_package) = compute_dkg_round_2(round_1_public_packages, round_1_secret_package).map_err(|_| AppSW::DkgRound2Fail)?;
 
     let response = generate_response(&mut round2_secret_package_vec, &round2_public_package);
     drop(round2_secret_package_vec);
@@ -64,13 +63,11 @@ pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     send_apdu_chunks(comm, &response)
 }
 
-fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
+#[inline(never)]
+fn parse_round_1_public_packages() -> (Vec<PublicPackage>, usize){
     zlog_stack("start parse_tx round2\0");
 
-    let mut tx_pos: usize = 0;
-
-    let identity_index = Buffer.get_element(tx_pos);
-    tx_pos += 1;
+    let mut tx_pos:usize = 1;
 
     let elements = Buffer.get_element(tx_pos);
     tx_pos += 1;
@@ -88,45 +85,34 @@ fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
         round_1_public_packages.push(public_package);
     }
 
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
-        as usize;
-    tx_pos += 2;
+    (round_1_public_packages, tx_pos)
+}
+#[inline(never)]
+fn parse_round_1_secret_package(mut tx_pos:usize) -> &'static [u8] {
+    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
+    tx_pos +=2;
 
-    let round_1_secret_package = Buffer.get_slice(tx_pos, tx_pos + len).to_vec();
-    tx_pos += len;
-
-    if tx_pos != max_buffer_pos {
-        return Err("invalid payload");
-    }
-
-    Ok(Tx {
-        round_1_secret_package,
-        round_1_public_packages,
-        identity_index,
-    })
+    Buffer.get_slice(tx_pos,tx_pos+len)
 }
 
-fn compute_dkg_round_2(
-    secret: &Secret,
-    tx: &Tx,
-) -> Result<(Vec<u8>, CombinedPublicPackage), IronfishFrostError> {
+#[inline(never)]
+fn compute_dkg_round_2(round_1_public_packages:Vec<PublicPackage>, round_1_secret_package: &[u8]) -> Result<(Vec<u8>, CombinedPublicPackage), IronfishFrostError> {
     zlog_stack("start compute_dkg_round_2\0");
 
-    let mut rng = LedgerRng {};
+    let mut rng = LedgerRng{};
+    let secret = compute_dkg_secret(Buffer.get_element(0));
 
-    dkg::round2::round2(
-        secret,
-        &tx.round_1_secret_package,
-        &tx.round_1_public_packages,
+   dkg::round2::round2(
+        &secret,
+        round_1_secret_package,
+        &round_1_public_packages,
         &mut rng,
     )
 }
 
-fn generate_response(
-    mut round2_secret_package_vec: &mut Vec<u8>,
-    round2_public_package: &CombinedPublicPackage,
-) -> Vec<u8> {
-    let mut resp: Vec<u8> = Vec::new();
+#[inline(never)]
+fn generate_response(mut round2_secret_package_vec: &mut Vec<u8>, round2_public_package: &CombinedPublicPackage) -> Vec<u8> {
+    let mut resp : Vec<u8> = Vec::new();
     let mut round2_public_package_vec = round2_public_package.serialize();
     let round2_public_package_len = round2_public_package_vec.len();
     let round2_secret_package_len = round2_secret_package_vec.len();
@@ -151,6 +137,7 @@ fn generate_response(
     resp
 }
 
+#[inline(never)]
 fn send_apdu_chunks(comm: &mut Comm, data_vec: &Vec<u8>) -> Result<(), AppSW> {
     let data = data_vec.as_slice();
     let total_chunks = (data.len() + MAX_APDU_SIZE - 1) / MAX_APDU_SIZE;

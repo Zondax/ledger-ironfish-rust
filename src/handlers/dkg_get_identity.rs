@@ -24,6 +24,7 @@ use ledger_device_sdk::io::Comm;
 
 const MAX_IDENTITY_INDEX:u8 = 5;
 
+#[inline(never)]
 pub fn handler_dkg_get_identity(comm: &mut Comm) -> Result<(), AppSW> {
     let data_vec = comm.get_data().map_err(|_| AppSW::WrongApduLength)?.to_vec();
     let data = data_vec.as_slice();

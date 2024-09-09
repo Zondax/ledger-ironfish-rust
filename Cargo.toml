@@ -5,7 +5,7 @@ authors = ["yhql", "agrojean-ledger"]
 edition = "2021"
 
 [dependencies]
-ledger_device_sdk = { git = "https://github.com/Zondax/ledger-device-rust-sdk", rev = "77f872272720f74d0ce850dcf104872b8b1c26f9" }
+ledger_device_sdk = { git="https://github.com/Zondax/ledger-device-rust-sdk", rev = "4fab5c832de179b2e38be10e7acd2cc70565404a" }
 # ledger_device_sdk = { version="1.14.0" }
 include_gif = "1.2.0"
 serde = { version = "1.0.192", default_features = false, features = ["derive"] }
@@ -15,6 +15,11 @@ hex = { version = "0.4.3", default-features = false, features = [
     "alloc",
 ] }
 numtoa = "0.2.4"
+jubjub = { version = "0.10.0", default-features = false }
+blake2b_simd = { version = "1.0.0", default-features = false }
+blake2s_simd = { version = "1.0.0", default-features = false }
+ff = "0.12.0"
+group = "0.12.0"
 
 ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "07dcdc6c0291d61c8d18d056ead66fb140b3a7c5", default-features = false, features = [
     "dkg",

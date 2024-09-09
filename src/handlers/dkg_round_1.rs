@@ -25,7 +25,11 @@ use alloc::vec::Vec;
 use ironfish_frost::dkg;
 use ironfish_frost::participant::{Identity, Secret};
 use ledger_device_sdk::io::{Comm, Event};
-use ledger_device_sdk::random::LedgerRng;
+use crate::accumulator::accumulate_data;
+use crate::nvm::buffer::{Buffer};
+use crate::handlers::dkg_get_identity::compute_dkg_secret;
+use crate::context::TxContext;
+use crate::utils::{zlog, zlog_stack};
 
 const MAX_APDU_SIZE: usize = 253;
 
@@ -35,7 +39,12 @@ pub struct Tx {
     min_signers: u8,
 }
 
-pub fn handler_dkg_round_1(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
+#[inline(never)]
+pub fn handler_dkg_round_1(
+    comm: &mut Comm,
+    chunk: u8,
+    ctx: &mut TxContext,
+) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_1\0");
 
     accumulate_data(comm, chunk, ctx)?;
