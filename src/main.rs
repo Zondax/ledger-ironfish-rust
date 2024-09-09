@@ -18,6 +18,7 @@
 #![no_std]
 #![no_main]
 
+mod parser;
 mod utils;
 mod app_ui {
     pub mod menu;
@@ -35,7 +36,6 @@ mod error;
 mod accumulator;
 mod buffer;
 mod context;
-mod deserialize;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
