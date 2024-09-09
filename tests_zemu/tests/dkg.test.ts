@@ -16,7 +16,7 @@
 
 import Zemu from '@zondax/zemu'
 import {defaultOptions, models, PATH} from './common'
-import IronfishApp from '@zondax/ledger-ironfish'
+import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
 
 jest.setTimeout(4500000)
 
@@ -33,7 +33,9 @@ const identities  = [
 // ONE_APP_PER_PARTICIPANT: Use this flag if the whole DKG process will run in one app per participant
 // Otherwise, if both are falsy, one app will be started per request (each round for each participant)
 const ONE_GLOBAL_APP = 0;
-const ONE_APP_PER_PARTICIPANT = 0;
+const ONE_APP_PER_PARTICIPANT = 1;
+
+// Reference taken from https://github.com/iron-fish/ironfish/pull/5324/files
 
 describe.each(models)('DKG', function (m) {
     it.skip('can start and stop container', async function () {
@@ -45,7 +47,7 @@ describe.each(models)('DKG', function (m) {
         }
     })
 
-    describe.each([{p:3, min:2}])('participants', function ({p: participants, min: minSigners}){
+    describe.each([{p:2, min:2}])('participants', function ({p: participants, min: minSigners}){
         it("p: " + participants + " - min: " + minSigners, async function(){
             const checkSimRequired = (sims: Zemu[], i:number): {sim: Zemu, created:boolean} => {
                 let created = false;
@@ -87,6 +89,9 @@ describe.each(models)('DKG', function (m) {
             let identities: any[] = [];
             let round1s: any[] = [];
             let round2s: any[] = [];
+            let commitments: any[] = [];
+            let pks: any[] = [];
+            let signatures: any[] = [];
 
             try {
                 for(let i = 0; i < participants; i++){
@@ -143,7 +148,7 @@ describe.each(models)('DKG', function (m) {
                 }
 
                 for(let i = 0; i < participants; i++){
-                    const round3 = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                    await runMethod(globalSims, i, async (app: IronfishApp) => {
                         let round3 = await app.dkgRound3(
                             PATH,
                             i,
@@ -157,14 +162,81 @@ describe.each(models)('DKG', function (m) {
 
                         return round3
                     });
+                }
 
-                    /*if(!round2.publicPackage || !round2.secretPackage)
-                        throw new Error("no round 1 found")
+                // Generate keys from the multisig DKG process just finalized
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgRetrieveKeys(
+                            IronfishKeys.PublicAddress
+                        );
 
-                    round2s.push({
-                        publicPackage: round2.publicPackage.toString('hex'),
-                        secretPackage: round2.secretPackage.toString('hex')
-                    })*/
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect("publicAddress" in result).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.publicAddress)
+                        throw new Error("no commitment found")
+
+                    pks.push(result.publicAddress.toString("hex"));
+                }
+
+                // Check that the public address generated on each participant for the multisig account is the same
+                const pksMap = pks.reduce((acc: {[key:string]: boolean}, pk) => {
+                    if(!acc[pk]) acc[pk] = true
+                    return acc
+                }, {})
+                console.log(JSON.stringify(pksMap))
+                expect(Object.keys(pksMap).length).toBe(1);
+
+
+                // Craft new tx, to get the tx hash and the public randomness
+                // Pass those values to the following commands
+
+                for(let i = 0; i < participants; i++){
+                    const commitment = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let commitment = await app.dkgGetCommitment(
+                            PATH,
+                            identities,
+                            "760ee307e054e6de63f7d5ee4eac89018f69a0aa56bd15f3b496f3e344991b18"
+                        );
+
+                        expect(i + " " + commitment.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(commitment.errorMessage).toEqual('No errors')
+                        expect(commitment.commitment).toBeTruthy()
+
+                        return commitment
+                    });
+
+                    if(!commitment.commitment)
+                        throw new Error("no commitment found")
+
+                    commitments.push(commitment.commitment);
+                }
+
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgSign(
+                            PATH,
+                            "", // pkRandomness
+                            "", // frostSigningPackage
+                            commitments[i].toString("hex")
+                        );
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect(result.signature).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.signature)
+                        throw new Error("no signature found")
+
+                    signatures.push(result.signature);
                 }
             } finally {
                 for (let i = 0; i < globalSims.length; i++)

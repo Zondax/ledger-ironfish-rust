@@ -1,6 +1,6 @@
 use ledger_device_sdk::io::Comm;
 use crate::AppSW;
-use crate::buffer::{Buffer, BUFFER_SIZE};
+use crate::nvm::buffer::{Buffer, BUFFER_SIZE};
 use crate::context::TxContext;
 use crate::utils::zlog_stack;
 

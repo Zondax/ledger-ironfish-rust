@@ -15,7 +15,7 @@
  *  limitations under the License.
  *****************************************************************************/
 
-use crate::{AppSW, Instruction};
+use crate::{AppSW};
 use alloc::vec::Vec;
 use ironfish_frost::dkg;
 use ironfish_frost::dkg::group_key::GroupSecretKey;
@@ -24,23 +24,16 @@ use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ironfish_frost::error::IronfishFrostError;
 use ironfish_frost::frost::keys::KeyPackage;
-use ironfish_frost::participant::{Secret};
-use ledger_device_sdk::io::{Comm, Event};
+use ledger_device_sdk::io::{Comm};
 use crate::accumulator::accumulate_data;
-use crate::buffer::{Buffer, BUFFER_SIZE};
+use crate::nvm::buffer::{Buffer};
 use crate::context::TxContext;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
-use crate::utils::{zlog, zlog_stack};
+use crate::nvm::dkg_keys::DkgKeys;
+use crate::utils::{zlog_stack};
 
-const MAX_APDU_SIZE: usize = 253;
 
-pub struct Tx {
-    identity_index: u8,
-    round_1_public_packages: Vec<PublicPackage>,
-    round_2_public_packages: Vec<CombinedPublicPackage>,
-    round_2_secret_package: Vec<u8>,
-}
-
+#[inline(never)]
 pub fn handler_dkg_round_3(
     comm: &mut Comm,
     chunk: u8,
@@ -54,20 +47,16 @@ pub fn handler_dkg_round_3(
     }
 
     // Try to deserialize the transaction
-    let tx: Tx = parse_tx(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
+    let (round_1_public_packages, round_2_public_packages, round_2_secret_package) = parse_tx();
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
 
-    let dkg_secret = compute_dkg_secret(tx.identity_index);
-    let (key_package, public_key_package, group_secret_key) = compute_dkg_round_3(&dkg_secret, &tx).map_err(|_| AppSW::DkgRound3Fail)?;
-    drop(tx);
-    drop(dkg_secret);
+    let (key_package, public_key_package, group_secret_key)
+        = compute_dkg_round_3(round_1_public_packages, round_2_public_packages, round_2_secret_package).map_err(|_| AppSW::DkgRound3Fail)?;
 
-    let response = generate_response(&key_package, &public_key_package, &group_secret_key);
-    drop(key_package);
-    drop(public_key_package);
+    save_response(key_package, public_key_package, group_secret_key);
 
-    send_apdu_chunks(comm, &response)
+    Ok(())
 }
 
 #[inline(never)]
@@ -119,14 +108,12 @@ fn parse_round_2_public_packages(mut tx_pos: usize)-> (Vec<CombinedPublicPackage
     (round_2_public_packages, tx_pos)
 }
 
+
 #[inline(never)]
-fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str>{
+fn parse_tx() -> (Vec<PublicPackage>, Vec<CombinedPublicPackage>, &'static [u8]){
     zlog_stack("start parse_tx round3\0");
 
-    let mut tx_pos:usize = 0;
-
-    let identity_index = Buffer.get_element(tx_pos);
-    tx_pos +=1;
+    let tx_pos:usize = 1;
 
     let (round_1_public_packages, tx_pos) = parse_round_1_public_packages(tx_pos);
     let (round_2_public_packages, mut tx_pos) = parse_round_2_public_packages(tx_pos);
@@ -134,60 +121,36 @@ fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str>{
     let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
     tx_pos +=2;
 
-    let round_2_secret_package = Buffer.get_slice(tx_pos,tx_pos+len).to_vec();
-    tx_pos += len;
+    let round_2_secret_package = Buffer.get_slice(tx_pos,tx_pos+len);
 
-    if tx_pos != max_buffer_pos {
-        return Err("invalid payload");
-    }
 
     zlog_stack("done parse_tx round3\0");
 
-    Ok(Tx{
-        round_2_secret_package: round_2_secret_package,
-        round_1_public_packages: round_1_public_packages,
-        round_2_public_packages: round_2_public_packages,
-        identity_index
-    })
+    (round_1_public_packages, round_2_public_packages, round_2_secret_package)
 }
 
-fn compute_dkg_round_3(secret: &Secret, tx: &Tx) -> Result<(KeyPackage, PublicKeyPackage, GroupSecretKey), IronfishFrostError> {
+#[inline(never)]
+fn compute_dkg_round_3(round_1_public_packages: Vec<PublicPackage>, round_2_public_packages: Vec<CombinedPublicPackage>, round_2_secret_package: &[u8]) -> Result<(KeyPackage, PublicKeyPackage, GroupSecretKey), IronfishFrostError> {
     zlog_stack("start compute_dkg_round_3\0");
 
+    let secret = compute_dkg_secret(Buffer.get_element(0));
+
    dkg::round3::round3(
-        secret,
-        &tx.round_2_secret_package,
-        &tx.round_1_public_packages,
-        &tx.round_2_public_packages
+        &secret,
+        round_2_secret_package,
+        &round_1_public_packages,
+        &round_2_public_packages
     )
 }
 
-fn generate_response(_key_package: &KeyPackage, public_key_package: &PublicKeyPackage, _group_secret_key: &GroupSecretKey) -> Vec<u8> {
-    let mut resp : Vec<u8> = Vec::new();
-    let mut public_key_package_vec = public_key_package.serialize();
-    let public_key_package_len = public_key_package_vec.len();
+#[inline(never)]
+fn save_response(key_package: KeyPackage, public_key_package: PublicKeyPackage, group_secret_key: GroupSecretKey) {
+    DkgKeys.set_u16(0, 6);
+    let mut pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
+    DkgKeys.set_u16(2, pos as u16);
+    pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
+    DkgKeys.set_u16(4, pos as u16);
+    pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().as_slice());
 
-    resp.append(&mut [(public_key_package_len >> 8) as u8, (public_key_package_len & 0xFF) as u8].to_vec());
-    resp.append(&mut public_key_package_vec);
-
-    resp
-}
-
-fn send_apdu_chunks(comm: &mut Comm, data_vec: &Vec<u8>) -> Result<(), AppSW> {
-    let data = data_vec.as_slice();
-    let total_chunks = (data.len() + MAX_APDU_SIZE - 1) / MAX_APDU_SIZE;
-
-    for (i, chunk) in data.chunks(MAX_APDU_SIZE).enumerate() {
-        comm.append(chunk);
-
-        if i < total_chunks - 1 {
-            comm.reply_ok();
-            match comm.next_event() {
-                Event::Command(Instruction::DkgRound2 { chunk: 0 }) => {}
-                _ => {},
-            }
-        }
-    }
-
-    Ok(())
+    // TODO check that last pos is not bigger than dkg_keys buffer
 }

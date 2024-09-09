@@ -22,26 +22,46 @@ mod utils;
 mod app_ui {
     pub mod menu;
 }
+mod ironfish{
+    pub mod sapling;
+    pub mod constants;
+    pub mod view_keys;
+    pub mod errors;
+    pub mod multisig;
+    pub mod public_address;
+}
+
 mod handlers {
     pub mod get_version;
     pub mod dkg_get_identity;
     pub mod dkg_round_1;
     pub mod dkg_round_2;
     pub mod dkg_round_3;
+    pub mod dkg_get_keys;
+    pub mod dkg_commitment;
+    pub mod dkg_sign;
+}
+
+mod nvm {
+    pub mod buffer;
+    pub mod dkg_keys;
 }
 
 mod context;
-mod buffer;
-mod accumulator;
+pub mod accumulator;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
-    get_version::handler_get_version,
     dkg_get_identity::handler_dkg_get_identity,
-    dkg_round_1::{handler_dkg_round_1},
-    dkg_round_2::{handler_dkg_round_2},
-    dkg_round_3::{handler_dkg_round_3},
+    dkg_round_1::handler_dkg_round_1,
+    dkg_round_2::handler_dkg_round_2,
+    dkg_round_3::handler_dkg_round_3,
+    dkg_get_keys::handler_dkg_get_keys,
+    get_version::handler_get_version,
+    dkg_commitment::handler_dkg_commitment,
+    dkg_sign::handler_dkg_sign,
 };
+
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
 #[cfg(feature = "pending_review_screen")]
 #[cfg(not(any(target_os = "stax", target_os = "flex")))]
@@ -92,6 +112,9 @@ pub enum Instruction {
     DkgRound1 { chunk: u8 },
     DkgRound2 { chunk: u8 },
     DkgRound3 { chunk: u8 },
+    DkgCommitment { chunk: u8 },
+    DkgSign { chunk: u8 },
+    DkgGetKeys,
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -128,6 +151,17 @@ impl TryFrom<ApduHeader> for Instruction {
                     chunk: value.p1
                 })
             },
+            (20, 0..=2, 0) => {
+                Ok(Instruction::DkgCommitment {
+                    chunk: value.p1
+                })
+            },
+            (21, 0..=2, 0) => {
+                Ok(Instruction::DkgSign {
+                    chunk: value.p1
+                })
+            },
+            (22, 0, 0) => Ok(Instruction::DkgGetKeys),
             (3..=6, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
         }
@@ -187,5 +221,8 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound1 { chunk } => handler_dkg_round_1(comm, *chunk, ctx),
         Instruction::DkgRound2 { chunk } => handler_dkg_round_2(comm, *chunk, ctx),
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
+        Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
+        Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
+        Instruction::DkgGetKeys => handler_dkg_get_keys(comm)
     }
 }

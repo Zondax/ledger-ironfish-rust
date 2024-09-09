@@ -2,7 +2,7 @@ use ledger_device_sdk::nvm::*;
 use ledger_device_sdk::NVMData;
 
 // This is necessary to store the object in NVM and not in RAM
-pub const BUFFER_SIZE: usize = 4000;
+pub const BUFFER_SIZE: usize = 3000;
 #[link_section = ".nvm_data"]
 static mut DATA: NVMData<AlignedStorage<[u8; BUFFER_SIZE]>> =
     NVMData::new(AlignedStorage::new([0u8; BUFFER_SIZE]));
@@ -23,12 +23,14 @@ impl Buffer {
         unsafe { DATA.get_mut() }
     }
 
+    #[inline(never)]
     #[allow(unused)]
     pub fn get_element(&self, index: usize) -> u8 {
         let buffer = unsafe { DATA.get_mut() };
         buffer.get_ref()[index]
     }
 
+    #[inline(never)]
     #[allow(unused)]
     pub fn set_element(&self, index: usize, value: u8) {
         let mut updated_data: [u8; BUFFER_SIZE] = unsafe { *DATA.get_mut().get_ref() };
@@ -38,6 +40,7 @@ impl Buffer {
         }
     }
 
+    #[inline(never)]
     #[allow(unused)]
     pub fn set_slice(&self, mut index: usize, value: &[u8]) {
         let mut updated_data: [u8; BUFFER_SIZE] = unsafe { *DATA.get_mut().get_ref() };
@@ -50,9 +53,18 @@ impl Buffer {
         }
     }
 
+    #[inline(never)]
     #[allow(unused)]
     pub fn get_slice(&self, start_pos: usize, end_pos:usize) -> &[u8] {
         let buffer = unsafe { DATA.get_mut() };
         &buffer.get_ref()[start_pos..end_pos]
+    }
+
+    #[inline(never)]
+    #[allow(unused)]
+    pub fn get_u16(&self, start_pos: usize) -> usize {
+        let buffer = unsafe { DATA.get_mut() };
+        let buffer_ref = buffer.get_ref();
+        ((buffer_ref[start_pos] as u16) << 8 | buffer_ref[start_pos+1] as u16) as usize
     }
 }
