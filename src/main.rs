@@ -23,24 +23,25 @@ mod app_ui {
     pub mod menu;
 }
 mod handlers {
-    pub mod get_version;
     pub mod dkg_get_identity;
     pub mod dkg_round_1;
     pub mod dkg_round_2;
     pub mod dkg_round_3;
+    pub mod get_version;
 }
 
-mod context;
-mod buffer;
+mod error;
+
 mod accumulator;
+mod buffer;
+mod context;
+mod deserialize;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
+    dkg_get_identity::handler_dkg_get_identity, dkg_round_1::handler_dkg_round_1,
+    dkg_round_2::handler_dkg_round_2, dkg_round_3::handler_dkg_round_3,
     get_version::handler_get_version,
-    dkg_get_identity::handler_dkg_get_identity,
-    dkg_round_1::{handler_dkg_round_1},
-    dkg_round_2::{handler_dkg_round_2},
-    dkg_round_3::{handler_dkg_round_3},
 };
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
 #[cfg(feature = "pending_review_screen")]
@@ -52,9 +53,9 @@ ledger_device_sdk::set_panic!(ledger_device_sdk::exiting_panic);
 // Required for using String, Vec, format!...
 extern crate alloc;
 
+use crate::context::TxContext;
 #[cfg(any(target_os = "stax", target_os = "flex"))]
 use ledger_device_sdk::nbgl::{init_comm, NbglReviewStatus, StatusType};
-use crate::context::TxContext;
 
 // Application status words.
 #[repr(u16)]
@@ -113,21 +114,9 @@ impl TryFrom<ApduHeader> for Instruction {
             (3, 0, 0) => Ok(Instruction::GetVersion),
             (4, 0, 0) => Ok(Instruction::GetAppName),
             (16, 0, 0) => Ok(Instruction::DkgGetIdentity),
-            (17, 0..=2, 0) => {
-                Ok(Instruction::DkgRound1 {
-                    chunk: value.p1
-                })
-            },
-            (18, 0..=2, 0) => {
-                Ok(Instruction::DkgRound2 {
-                    chunk: value.p1
-                })
-            },
-            (19, 0..=2, 0) => {
-                Ok(Instruction::DkgRound3 {
-                    chunk: value.p1
-                })
-            },
+            (17, 0..=2, 0) => Ok(Instruction::DkgRound1 { chunk: value.p1 }),
+            (18, 0..=2, 0) => Ok(Instruction::DkgRound2 { chunk: value.p1 }),
+            (19, 0..=2, 0) => Ok(Instruction::DkgRound3 { chunk: value.p1 }),
             (3..=6, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
         }

@@ -1,8 +1,6 @@
-use crate::utils::Bip32Path;
-
 pub struct TxContext {
     pub buffer_pos: usize,
-    pub done: bool
+    pub done: bool,
 }
 
 // Implement constructor for TxInfo with default values
@@ -11,7 +9,7 @@ impl TxContext {
     pub fn new() -> TxContext {
         TxContext {
             buffer_pos: 0,
-            done: false
+            done: false,
         }
     }
 
@@ -21,3 +19,4 @@ impl TxContext {
         self.done = false;
     }
 }
+

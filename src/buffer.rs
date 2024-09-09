@@ -17,7 +17,6 @@ impl Default for Buffer {
 }
 
 impl Buffer {
-    #[inline(never)]
     #[allow(unused)]
     pub fn get_mut_ref(&mut self) -> &mut AlignedStorage<[u8; BUFFER_SIZE]> {
         unsafe { DATA.get_mut() }
@@ -29,6 +28,7 @@ impl Buffer {
         buffer.get_ref()[index]
     }
 
+    #[inline(never)]
     #[allow(unused)]
     pub fn set_element(&self, index: usize, value: u8) {
         let mut updated_data: [u8; BUFFER_SIZE] = unsafe { *DATA.get_mut().get_ref() };
@@ -38,6 +38,7 @@ impl Buffer {
         }
     }
 
+    #[inline(never)]
     #[allow(unused)]
     pub fn set_slice(&self, mut index: usize, value: &[u8]) {
         let mut updated_data: [u8; BUFFER_SIZE] = unsafe { *DATA.get_mut().get_ref() };
@@ -51,7 +52,7 @@ impl Buffer {
     }
 
     #[allow(unused)]
-    pub fn get_slice(&self, start_pos: usize, end_pos:usize) -> &[u8] {
+    pub fn get_slice(&self, start_pos: usize, end_pos: usize) -> &[u8] {
         let buffer = unsafe { DATA.get_mut() };
         &buffer.get_ref()[start_pos..end_pos]
     }

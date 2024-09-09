@@ -15,17 +15,17 @@
  *  limitations under the License.
  *****************************************************************************/
 
+use crate::accumulator::accumulate_data;
+use crate::buffer::Buffer;
+use crate::context::TxContext;
+use crate::handlers::dkg_get_identity::compute_dkg_secret;
+use crate::utils::{zlog, zlog_stack};
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
-use ledger_device_sdk::random::LedgerRng;
 use ironfish_frost::dkg;
 use ironfish_frost::participant::{Identity, Secret};
 use ledger_device_sdk::io::{Comm, Event};
-use crate::accumulator::accumulate_data;
-use crate::buffer::{Buffer, BUFFER_SIZE};
-use crate::handlers::dkg_get_identity::compute_dkg_secret;
-use crate::context::TxContext;
-use crate::utils::{zlog, zlog_stack};
+use ledger_device_sdk::random::LedgerRng;
 
 const MAX_APDU_SIZE: usize = 253;
 
@@ -35,11 +35,7 @@ pub struct Tx {
     min_signers: u8,
 }
 
-pub fn handler_dkg_round_1(
-    comm: &mut Comm,
-    chunk: u8,
-    ctx: &mut TxContext,
-) -> Result<(), AppSW> {
+pub fn handler_dkg_round_1(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_1\0");
 
     accumulate_data(comm, chunk, ctx)?;
@@ -52,53 +48,70 @@ pub fn handler_dkg_round_1(
     compute_dkg_round_1(comm, &dkg_secret, &mut tx)
 }
 
-fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str>{
-    let mut tx_pos:usize = 0;
+fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
+    let mut tx_pos: usize = 0;
 
     let identity_index = Buffer.get_element(tx_pos);
-    tx_pos +=1;
+    tx_pos += 1;
 
     let elements = Buffer.get_element(tx_pos);
-    tx_pos +=1;
+    tx_pos += 1;
 
-    let mut identities:Vec<Identity> = Vec::new();
+    let mut identities: Vec<Identity> = Vec::new();
     for _i in 0..elements {
-        let identity = Identity::deserialize_from(Buffer.get_slice(tx_pos,tx_pos+129)).unwrap();
+        let identity = Identity::deserialize_from(Buffer.get_slice(tx_pos, tx_pos + 129)).unwrap();
         tx_pos += 129;
 
         identities.push(identity);
     }
 
-    let min_signers = Buffer.get_element(tx_pos);;
+    let min_signers = Buffer.get_element(tx_pos);
     tx_pos += 1;
 
     if tx_pos != max_buffer_pos {
         return Err("invalid payload");
     }
 
-    Ok(Tx{identities, min_signers, identity_index})
+    Ok(Tx {
+        identities,
+        min_signers,
+        identity_index,
+    })
 }
 
 fn compute_dkg_round_1(comm: &mut Comm, secret: &Secret, tx: &mut Tx) -> Result<(), AppSW> {
     zlog("start compute_dkg_round_1\n\0");
 
-    let mut rng = LedgerRng{};
+    let mut rng = LedgerRng {};
 
     let (mut round1_secret_package_vec, round1_public_package) = dkg::round1::round1(
         &secret.to_identity(),
         tx.min_signers as u16,
         &tx.identities,
         &mut rng,
-    ).unwrap();
+    )
+    .unwrap();
 
-    let mut resp : Vec<u8> = Vec::new();
+    let mut resp: Vec<u8> = Vec::new();
     let mut round1_public_package_vec = round1_public_package.serialize();
     let round1_public_package_len = round1_public_package_vec.len();
     let round1_secret_package_len = round1_secret_package_vec.len();
 
-    resp.append(&mut [(round1_secret_package_len >> 8) as u8, (round1_secret_package_len & 0xFF) as u8].to_vec());
+    resp.append(
+        &mut [
+            (round1_secret_package_len >> 8) as u8,
+            (round1_secret_package_len & 0xFF) as u8,
+        ]
+        .to_vec(),
+    );
     resp.append(&mut round1_secret_package_vec);
-    resp.append(&mut [(round1_public_package_len >> 8) as u8, (round1_public_package_len & 0xFF) as u8].to_vec());
+    resp.append(
+        &mut [
+            (round1_public_package_len >> 8) as u8,
+            (round1_public_package_len & 0xFF) as u8,
+        ]
+        .to_vec(),
+    );
     resp.append(&mut round1_public_package_vec);
 
     send_apdu_chunks(comm, resp.as_slice())?;
@@ -116,7 +129,7 @@ fn send_apdu_chunks(comm: &mut Comm, data: &[u8]) -> Result<(), AppSW> {
             comm.reply_ok();
             match comm.next_event() {
                 Event::Command(Instruction::DkgRound1 { chunk: 0 }) => {}
-                _ => {},
+                _ => {}
             }
         }
     }
