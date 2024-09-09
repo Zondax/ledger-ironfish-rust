@@ -16,7 +16,6 @@
  *****************************************************************************/
 
 use crate::{AppSW, Instruction};
-use alloc::vec::Vec;
 use ironfish_frost::dkg::group_key::{GroupSecretKey, GROUP_SECRET_KEY_LEN};
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ledger_device_sdk::io::{Comm, Event};

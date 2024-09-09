@@ -3,8 +3,6 @@ use crate::AppSW;
 use crate::nvm::buffer::{Buffer, BUFFER_SIZE};
 use crate::context::TxContext;
 use crate::utils::zlog_stack;
-use crate::AppSW;
-use ledger_device_sdk::io::Comm;
 
 #[inline(never)]
 pub fn accumulate_data(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {

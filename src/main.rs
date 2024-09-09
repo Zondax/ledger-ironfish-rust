@@ -32,6 +32,7 @@ mod ironfish{
 }
 
 mod handlers {
+    pub mod get_version;
     pub mod dkg_get_identity;
     pub mod dkg_round_1;
     pub mod dkg_round_2;
@@ -48,6 +49,8 @@ mod nvm {
 
 mod context;
 pub mod accumulator;
+pub mod deserialize;
+pub mod error;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{

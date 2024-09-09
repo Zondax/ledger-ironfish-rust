@@ -16,10 +16,6 @@
  *****************************************************************************/
 
 use crate::accumulator::accumulate_data;
-use crate::buffer::Buffer;
-use crate::context::TxContext;
-use crate::handlers::dkg_get_identity::compute_dkg_secret;
-use crate::utils::zlog_stack;
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
 use ironfish_frost::dkg;
@@ -27,7 +23,7 @@ use ironfish_frost::dkg::round1::PublicPackage;
 use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::error::IronfishFrostError;
 use ledger_device_sdk::io::{Comm, Event};
-use crate::accumulator::accumulate_data;
+use ledger_device_sdk::random::LedgerRng;
 use crate::nvm::buffer::{Buffer};
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
 use crate::context::TxContext;

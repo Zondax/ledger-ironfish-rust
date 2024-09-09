@@ -4,7 +4,6 @@ TESTS_JS_DIR = $(CURDIR)/js
 
 .PHONY: build
 build:
-	cargo clean
 	cargo ledger build nanosplus
 
 

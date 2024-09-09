@@ -29,13 +29,14 @@ use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ironfish_frost::error::IronfishFrostError;
 use ironfish_frost::frost::keys::KeyPackage;
+use ironfish_frost::participant::Secret;
 use ledger_device_sdk::io::{Comm};
 use crate::accumulator::accumulate_data;
 use crate::nvm::buffer::{Buffer};
 use crate::context::TxContext;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
 use crate::nvm::dkg_keys::DkgKeys;
-use crate::utils::{zlog_stack};
+use crate::utils::{canary, zlog_stack};
 
 
 pub struct Tx<'a> {
