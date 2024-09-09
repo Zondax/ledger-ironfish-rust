@@ -37,7 +37,7 @@ mod handlers {
     pub mod dkg_round_1;
     pub mod dkg_round_2;
     pub mod dkg_round_3;
-    pub mod dkg_get_address;
+    pub mod dkg_get_keys;
     pub mod dkg_commitment;
     pub mod dkg_sign;
 }
@@ -56,7 +56,7 @@ use handlers::{
     dkg_round_1::handler_dkg_round_1,
     dkg_round_2::handler_dkg_round_2,
     dkg_round_3::handler_dkg_round_3,
-    dkg_get_address::handler_dkg_get_address,
+    dkg_get_keys::handler_dkg_get_keys,
     get_version::handler_get_version,
     dkg_commitment::handler_dkg_commitment,
     dkg_sign::handler_dkg_sign,
@@ -114,7 +114,7 @@ pub enum Instruction {
     DkgRound3 { chunk: u8 },
     DkgCommitment { chunk: u8 },
     DkgSign { chunk: u8 },
-    DkgGetAddress,
+    DkgGetKeys,
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -161,7 +161,7 @@ impl TryFrom<ApduHeader> for Instruction {
                     chunk: value.p1
                 })
             },
-            (22, 0, 0) => Ok(Instruction::DkgGetIdentity),
+            (22, 0, 0) => Ok(Instruction::DkgGetKeys),
             (3..=6, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
         }
@@ -223,6 +223,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
         Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
         Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
-        Instruction::DkgGetAddress => handler_dkg_get_address(comm)
+        Instruction::DkgGetKeys => handler_dkg_get_keys(comm)
     }
 }

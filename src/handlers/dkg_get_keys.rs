@@ -27,10 +27,10 @@ use crate::nvm::dkg_keys::DkgKeys;
 const MAX_APDU_SIZE: usize = 253;
 
 #[inline(never)]
-pub fn handler_dkg_get_address(
+pub fn handler_dkg_get_keys(
     comm: &mut Comm
 ) -> Result<(), AppSW> {
-    zlog_stack("start handler_dkg_get_address\0");
+    zlog_stack("start handler_dkg_get_keys\0");
 
     let group_secret_key = load_group_secret_key();
     let public_key_package = load_public_key_package();

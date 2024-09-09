@@ -16,7 +16,7 @@
 
 import Zemu from '@zondax/zemu'
 import {defaultOptions, models, PATH} from './common'
-import IronfishApp from '@zondax/ledger-ironfish'
+import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
 
 jest.setTimeout(4500000)
 
@@ -90,6 +90,7 @@ describe.each(models)('DKG', function (m) {
             let round1s: any[] = [];
             let round2s: any[] = [];
             let commitments: any[] = [];
+            let pks: any[] = [];
             let signatures: any[] = [];
 
             try {
@@ -162,6 +163,35 @@ describe.each(models)('DKG', function (m) {
                         return round3
                     });
                 }
+
+                // Generate keys from the multisig DKG process just finalized
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgRetrieveKeys(
+                            IronfishKeys.PublicAddress
+                        );
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect("publicAddress" in result).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.publicAddress)
+                        throw new Error("no commitment found")
+
+                    pks.push(result.publicAddress.toString("hex"));
+                }
+
+                // Check that the public address generated on each participant for the multisig account is the same
+                const pksMap = pks.reduce((acc: {[key:string]: boolean}, pk) => {
+                    if(!acc[pk]) acc[pk] = true
+                    return acc
+                }, {})
+                console.log(JSON.stringify(pksMap))
+                expect(Object.keys(pksMap).length).toBe(1);
+
 
                 // Craft new tx, to get the tx hash and the public randomness
                 // Pass those values to the following commands
