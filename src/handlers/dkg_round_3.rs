@@ -21,7 +21,6 @@ use core::ptr::addr_of_mut;
 use core::mem::MaybeUninit;
 use crate::deserialize::{Deserializable, RawField};
 use crate::error::ParserError;
-use alloc::vec::Vec;
 use ironfish_frost::dkg;
 use ironfish_frost::dkg::group_key::GroupSecretKey;
 use ironfish_frost::dkg::round1::PublicPackage;
@@ -29,7 +28,6 @@ use ironfish_frost::dkg::round2::CombinedPublicPackage;
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ironfish_frost::error::IronfishFrostError;
 use ironfish_frost::frost::keys::KeyPackage;
-use ironfish_frost::participant::Secret;
 use ledger_device_sdk::io::{Comm};
 use crate::accumulator::accumulate_data;
 use crate::nvm::buffer::{Buffer};
@@ -73,6 +71,7 @@ impl Deserializable for CombinedPublicPackage {
     }
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_3\0");
 
@@ -88,11 +87,8 @@ pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
 
-    let dkg_secret = compute_dkg_secret(tx.identity_index);
     let (key_package, public_key_package, group_secret_key) =
-        compute_dkg_round_3(&dkg_secret, tx).map_err(|_| AppSW::DkgRound3Fail)?;
-
-    drop(dkg_secret);
+        compute_dkg_round_3(tx).map_err(|_| AppSW::DkgRound3Fail)?;
 
     save_response(key_package, public_key_package, group_secret_key);
 
@@ -179,16 +175,16 @@ fn parse_tx_lazy(
 
 #[inline(never)]
 fn compute_dkg_round_3(
-    secret: &Secret,
     tx: Tx,
 ) -> Result<(KeyPackage, PublicKeyPackage, GroupSecretKey), IronfishFrostError> {
     zlog_stack("compute_dkg_round_3\0");
 
+    let secret = compute_dkg_secret(tx.identity_index);
     let round1_iter = tx.round_1_public_packages;
     let round2_iter = tx.round_2_public_packages;
 
     dkg::round3::round3(
-        secret,
+        &secret,
         tx.round_2_secret_package,
         &round1_iter,
         &round2_iter,
