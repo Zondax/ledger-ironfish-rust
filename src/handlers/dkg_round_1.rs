@@ -16,7 +16,7 @@
  *****************************************************************************/
 
 use crate::accumulator::accumulate_data;
-use crate::buffer::{Buffer, BUFFER_SIZE};
+use crate::buffer::Buffer;
 use crate::context::TxContext;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
 use crate::utils::{zlog, zlog_stack};

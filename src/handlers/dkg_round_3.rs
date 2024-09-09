@@ -20,12 +20,12 @@ use core::ptr::addr_of_mut;
 use core::mem::MaybeUninit;
 
 use crate::accumulator::accumulate_data;
-use crate::buffer::{Buffer, BUFFER_SIZE};
+use crate::buffer::Buffer;
 use crate::context::TxContext;
 use crate::deserialize::{Deserializable, RawField};
 use crate::error::ParserError;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
-use crate::utils::{canary, zlog, zlog_stack};
+use crate::utils::{canary, zlog_stack};
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
 use ironfish_frost::dkg;
@@ -69,9 +69,7 @@ impl Deserializable for CombinedPublicPackage {
         let p = CombinedPublicPackage::deserialize_from(input)
             .map_err(|_| ParserError::InvalidCombinedPackage)?;
 
-        unsafe {
-            output.write(p);
-        }
+        output.write(p);
         Ok(())
     }
 }

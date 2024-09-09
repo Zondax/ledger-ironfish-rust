@@ -1,9 +1,6 @@
 use alloc::boxed::Box;
-use alloc::vec;
-use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::mem::MaybeUninit;
-use core::ptr::NonNull;
 
 use crate::error::ParserError;
 use crate::utils::zlog_stack;

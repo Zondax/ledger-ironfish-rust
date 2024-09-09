@@ -759,7 +759,7 @@ dependencies = [
 [[package]]
 name = "ironfish-frost"
 version = "0.1.0"
-source = "git+https://github.com/Zondax/ironfish-frost.git?rev=8f93acb9073a35392630ce67a95378917cfded5c#8f93acb9073a35392630ce67a95378917cfded5c"
+source = "git+https://github.com/Zondax/ironfish-frost.git?rev=68752b5b2dc47448e86ce18a576498df9111b7ce#68752b5b2dc47448e86ce18a576498df9111b7ce"
 dependencies = [
  "blake3",
  "chacha20",
@@ -826,6 +826,7 @@ checksum = "03087c2bad5e1034e8cace5926dec053fb3790248370865f5117a7d0213354c8"
 name = "ledger-ironfish"
 version = "1.5.0"
 dependencies = [
+ "getrandom",
  "hex",
  "include_gif 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ironfish-frost",

@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{error::ParserError, AppSW};
+use crate::AppSW;
 
 /// BIP32 path stored as an array of [`u32`].
 #[derive(Default)]
