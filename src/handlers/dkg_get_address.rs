@@ -20,6 +20,7 @@ use alloc::vec::Vec;
 use ironfish_frost::dkg::group_key::{GroupSecretKey, GROUP_SECRET_KEY_LEN};
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ledger_device_sdk::io::{Comm, Event};
+use crate::ironfish::multisig::derive_account_keys;
 use crate::utils::{zlog_stack};
 use crate::nvm::dkg_keys::DkgKeys;
 
@@ -27,22 +28,21 @@ const MAX_APDU_SIZE: usize = 253;
 
 #[inline(never)]
 pub fn handler_dkg_get_address(
-    _comm: &mut Comm
+    comm: &mut Comm
 ) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_get_address\0");
 
-    let _group_secret_key = load_group_secret_key();
-    let _public_key_package = load_public_key_package();
+    let group_secret_key = load_group_secret_key();
+    let public_key_package = load_public_key_package();
 
-    Ok(())
-        /*
-    let account_keys = derive_account_keys(public_key_package.verifying_key(), &group_secret_key);
+    let verifying_key_vec = public_key_package.verifying_key().serialize().unwrap();
+    let verifying_key = <&[u8; 32]>::try_from(verifying_key_vec.as_slice()).unwrap();
 
-    let resp = account_keys.public_address.serialize();
+    let account_keys = derive_account_keys(verifying_key, &group_secret_key);
 
-    send_apdu_chunks(comm, resp)
+    let resp = account_keys.public_address.public_address();
 
-         */
+    send_apdu_chunks(comm, &resp)
 }
 
 
@@ -68,10 +68,9 @@ fn load_public_key_package() -> PublicKeyPackage{
 }
 
 #[inline(never)]
-fn send_apdu_chunks(comm: &mut Comm, data_vec: Vec<u8>) -> Result<(), AppSW> {
+fn send_apdu_chunks(comm: &mut Comm, data: &[u8]) -> Result<(), AppSW> {
     zlog_stack("start send_apdu_chunks\0");
 
-    let data = data_vec.as_slice();
     let total_chunks = (data.len() + MAX_APDU_SIZE - 1) / MAX_APDU_SIZE;
 
     for (i, chunk) in data.chunks(MAX_APDU_SIZE).enumerate() {
