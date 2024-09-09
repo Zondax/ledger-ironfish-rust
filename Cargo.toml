@@ -18,7 +18,7 @@ blake2s_simd = { version = "1.0.0", default-features = false }
 ff = "0.12.0"
 group = "0.12.0"
 
-ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "a484b7a2fd60447f65c8f20006edb2a9415377fb", default-features = false, features = ["dkg", "signing"]}
+ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "001a2fa1a6166cc680aac751a53354de0596f1f6", default-features = false, features = ["dkg", "signing"]}
 #ironfish-frost = { path = "../ironfish-frost", default-features = false, features = ["dkg", "signing"]}
 
 getrandom = { version = "0.2", features = ["custom"] }
