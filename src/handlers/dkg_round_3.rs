@@ -25,7 +25,7 @@ use crate::context::TxContext;
 use crate::deserialize::{Deserializable, RawField};
 use crate::error::ParserError;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
-use crate::utils::{zlog, zlog_stack};
+use crate::utils::{canary, zlog, zlog_stack};
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
 use ironfish_frost::dkg;
@@ -121,6 +121,7 @@ fn parse_round<T: Deserializable>(
 
     let start = tx_pos;
     for _ in 0..elements {
+        canary();
         T::from_bytes_check(Buffer.get_slice(start, tx_pos + len))?;
         tx_pos += len;
     }
@@ -152,10 +153,12 @@ fn parse_tx_lazy(
     let (round_1_public_packages, tx_pos) =
         parse_round::<PublicPackage>(tx_pos, &mut num_elements, &mut element_len)
             .map(|(round1, tx_pos)| (RawField::new(num_elements, element_len, round1), tx_pos))?;
+    canary();
 
     let (round_2_public_packages, mut tx_pos) =
         parse_round::<CombinedPublicPackage>(tx_pos, &mut num_elements, &mut element_len)
             .map(|(round2, tx_pos)| (RawField::new(num_elements, element_len, round2), tx_pos))?;
+    canary();
 
     let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
         as usize;
