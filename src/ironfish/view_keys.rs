@@ -12,10 +12,7 @@
 //! that you have spent.
 //!
 
-use blake2b_simd::Params as Blake2b;
-use group::GroupEncoding;
-use jubjub::SubgroupPoint;
-use alloc::vec::Vec;
+use crate::ironfish::public_address::PublicAddress;
 
 const DIFFIE_HELLMAN_PERSONALIZATION: &[u8; 16] = b"Iron Fish shared";
 
@@ -27,6 +24,12 @@ pub struct IncomingViewKey {
     pub(crate) view_key: [u8; 32],
 }
 
+impl IncomingViewKey {
+    /// Generate a public address from the incoming viewing key
+    pub fn public_address(&self) -> PublicAddress {
+        PublicAddress::from_view_key(self)
+    }
+}
 /// Contains two keys that are required (along with outgoing view key)
 /// to have full view access to an account.
 /// Referred to as `ViewingKey` in the literature.
@@ -48,4 +51,11 @@ pub struct ViewKey {
 #[derive(Clone)]
 pub struct OutgoingViewKey {
     pub(crate) view_key: [u8; 32],
+}
+
+
+#[derive(Clone)]
+pub struct ProofGenerationKey {
+    pub ak: jubjub::AffinePoint,
+    pub nsk: jubjub::Fr,
 }

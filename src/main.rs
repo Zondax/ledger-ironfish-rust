@@ -27,6 +27,8 @@ mod ironfish{
     pub mod constants;
     pub mod view_keys;
     pub mod errors;
+    pub mod multisig;
+    pub mod public_address;
 }
 
 mod handlers {

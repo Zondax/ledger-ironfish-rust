@@ -1,9 +1,9 @@
 use crate::ironfish::constants::{CRH_IVK_PERSONALIZATION, PROOF_GENERATION_KEY_GENERATOR, SPENDING_KEY_GENERATOR};
 use blake2b_simd::Params as Blake2b;
 use blake2s_simd::Params as Blake2s;
-use jubjub::{AffinePoint, SubgroupPoint};
+use jubjub::{AffinePoint};
 use crate::ironfish::errors::IronfishError;
-use crate::ironfish::view_keys::{IncomingViewKey, OutgoingViewKey, ViewKey};
+use crate::ironfish::view_keys::{IncomingViewKey, OutgoingViewKey, ProofGenerationKey, ViewKey};
 
 const EXPANDED_SPEND_BLAKE2_KEY: &[u8; 16] = b"Iron Fish Money ";
 
@@ -141,5 +141,24 @@ impl SaplingKey {
         }
 
         Ok(hash_result)
+    }
+
+    /// Retrieve the publicly visible outgoing viewing key
+    pub fn outgoing_view_key(&self) -> &OutgoingViewKey {
+        &self.outgoing_viewing_key
+    }
+
+    /// Retrieve the publicly visible incoming viewing key
+    pub fn incoming_view_key(&self) -> &IncomingViewKey {
+        &self.incoming_viewing_key
+    }
+
+    /// Adapter to convert this key to a proof generation key for use in
+    /// sapling functions
+    pub fn sapling_proof_generation_key(&self) -> ProofGenerationKey {
+        ProofGenerationKey {
+            ak: self.view_key.authorizing_key,
+            nsk: self.proof_authorizing_key,
+        }
     }
 }
