@@ -87,7 +87,6 @@ pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     let mut tx = MaybeUninit::uninit();
     parse_tx_lazy(ctx.buffer_pos, &mut tx).map_err(|_| AppSW::TxParsingFail)?;
     let tx = unsafe { tx.assume_init() };
-    zlog_stack("tx_parsed!\0");
 
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
@@ -109,7 +108,7 @@ pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
 #[inline(never)]
 fn parse_round<T: Deserializable>(
     mut tx_pos: usize,
-    num_elements: &mut usize,
+    num_elements: &mut u8,
     element_len: &mut usize,
 ) -> Result<(&'static [u8], usize), ParserError> {
     zlog_stack("parse_round\0");
@@ -126,7 +125,7 @@ fn parse_round<T: Deserializable>(
         tx_pos += len;
     }
 
-    *num_elements = elements as usize;
+    *num_elements = elements;
     *element_len = len;
 
     let slice = Buffer.get_slice(start, tx_pos);
@@ -154,13 +153,9 @@ fn parse_tx_lazy(
         parse_round::<PublicPackage>(tx_pos, &mut num_elements, &mut element_len)
             .map(|(round1, tx_pos)| (RawField::new(num_elements, element_len, round1), tx_pos))?;
 
-    zlog_stack("round1_packages_parsed\0");
-
     let (round_2_public_packages, mut tx_pos) =
         parse_round::<CombinedPublicPackage>(tx_pos, &mut num_elements, &mut element_len)
             .map(|(round2, tx_pos)| (RawField::new(num_elements, element_len, round2), tx_pos))?;
-
-    zlog_stack("round2_packages_parsed\0");
 
     let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
         as usize;
@@ -172,8 +167,6 @@ fn parse_tx_lazy(
     if tx_pos != max_buffer_pos {
         return Err(ParserError::InvalidPayload);
     }
-
-    zlog_stack("***done parse_tx round3\0");
 
     let out = out.as_mut_ptr();
     unsafe {
@@ -193,9 +186,15 @@ fn compute_dkg_round_3(
 ) -> Result<(KeyPackage, PublicKeyPackage, GroupSecretKey), IronfishFrostError> {
     zlog_stack("compute_dkg_round_3\0");
 
-    let round1_iter = tx.round_1_public_packages.iter().into_iter();
-    let round2_iter = tx.round_2_public_packages.iter().into_iter();
-    dkg::round3::round3(secret, tx.round_2_secret_package, round1_iter, round2_iter)
+    let round1_iter = tx.round_1_public_packages;
+    let round2_iter = tx.round_2_public_packages;
+
+    dkg::round3::round3(
+        secret,
+        tx.round_2_secret_package,
+        &round1_iter,
+        &round2_iter,
+    )
 }
 
 fn generate_response(
