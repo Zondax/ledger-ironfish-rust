@@ -30,7 +30,7 @@ pub trait Deserializable: Sized {
 #[derive(Clone, Copy)]
 #[cfg_attr(any(feature = "derive-debug", test), derive(Debug))]
 pub struct RawField<'a, T> {
-    num_elements: usize,
+    num_elements: u8,
     len: usize,
     raw: &'a [u8],
     _marker: PhantomData<T>,
@@ -47,7 +47,7 @@ impl<'a, T> RawField<'a, T>
 where
     T: Deserializable,
 {
-    pub fn new(num_elements: usize, len: usize, raw: &'a [u8]) -> Self {
+    pub fn new(num_elements: u8, len: usize, raw: &'a [u8]) -> Self {
         RawField {
             num_elements,
             len,
@@ -62,7 +62,6 @@ where
 
     #[inline(never)]
     pub fn iter(&'a self) -> RawFieldIterator<'a, T> {
-        zlog_stack("RawField::iter\0");
         RawFieldIterator::new(self)
     }
 }
@@ -83,7 +82,6 @@ impl<'a, T: Deserializable> RawFieldIterator<'a, T> {
 impl<'a, T: Deserializable> Drop for RawFieldIterator<'a, T> {
     fn drop(&mut self) {
         // Log the drop event
-        zlog_stack("RawFieldIterator_dropped\0");
 
         unsafe {
             // Assuming we've added a field to track initialization
@@ -99,11 +97,18 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
 
     #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
-        zlog_stack("next\0");
-
         let elements_read = self.current_position / self.field.len;
-        if elements_read >= self.field.num_elements {
+        if elements_read >= self.field.num_elements as usize {
             return None;
+        }
+        // Drop the previous T if it was initialized
+        // in order to avoid memory leaks!!!
+        if self.is_initialized {
+            zlog_stack("RawFieldIterator::dropping_previous\0");
+            unsafe {
+                core::ptr::drop_in_place(self.current_element.as_mut_ptr());
+            }
+            self.is_initialized = false;
         }
 
         let input = &self.field.raw[self.current_position..];
@@ -114,8 +119,6 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
         };
         self.is_initialized = true;
 
-        zlog_stack("parsed_ok\0");
-
         self.current_position += self.field.len;
 
         // SAFETY: This is safe because the reference is valid for the lifetime of self,
@@ -125,7 +128,7 @@ impl<'a, T: Deserializable> Iterator for RawFieldIterator<'a, T> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let elements_read = self.current_position / self.field.len;
-        let remaining = self.field.num_elements - elements_read;
+        let remaining = self.field.num_elements as usize - elements_read;
         (remaining, Some(remaining))
     }
 }
