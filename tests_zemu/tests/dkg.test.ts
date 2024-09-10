@@ -17,7 +17,8 @@
 import Zemu from '@zondax/zemu'
 import {defaultOptions, models, PATH} from './common'
 import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
-import { isValidPublicAddress } from '@ironfish/rust-nodejs'
+import {isValidPublicAddress, multisig, UnsignedTransaction} from '@ironfish/rust-nodejs'
+import {buildTx} from "./utils";
 
 jest.setTimeout(4500000)
 
@@ -249,13 +250,15 @@ describe.each(models)('DKG', function (m) {
 
                 // Craft new tx, to get the tx hash and the public randomness
                 // Pass those values to the following commands
+                const tx = buildTx(pks[0], viewKeys[0], proofKeys[0]);
+                const unsignedTx = new UnsignedTransaction(tx);
 
                 for(let i = 0; i < participants; i++){
                     const commitment = await runMethod(globalSims, i, async (app: IronfishApp) => {
                         let commitment = await app.dkgGetCommitment(
                             PATH,
                             identities,
-                            "760ee307e054e6de63f7d5ee4eac89018f69a0aa56bd15f3b496f3e344991b18"
+                            unsignedTx.hash().toString("hex")
                         );
 
                         expect(i + " " + commitment.returnCode.toString(16)).toEqual(i + " " + "9000")
@@ -271,12 +274,15 @@ describe.each(models)('DKG', function (m) {
                     commitments.push(commitment.commitment);
                 }
 
+                const signingPackageHex = unsignedTx.signingPackage(commitments.map(c => c.toString("hex")))
+                const signingPackage = new multisig.SigningPackage(Buffer.from(signingPackageHex, "hex"))
+
                 for(let i = 0; i < participants; i++){
                     const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
                         let result = await app.dkgSign(
                             PATH,
-                            "", // pkRandomness
-                            "", // frostSigningPackage
+                            unsignedTx.publicKeyRandomness(),
+                            "", // FIXME missing frostSigningPackage method on the signingPackage
                             commitments[i].toString("hex")
                         );
 
