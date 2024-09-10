@@ -40,7 +40,7 @@ const ONE_APP_PER_PARTICIPANT = 1;
 // Reference taken from https://github.com/iron-fish/ironfish/pull/5324/files
 
 describe.each(models)('DKG', function (m) {
-    it.skip('can start and stop container', async function () {
+    it.skip(`${m.name} - can start and stop container`, async function () {
         const sim = new Zemu(m.path)
         try {
             await sim.start({ ...defaultOptions, model: m.name  })
@@ -49,7 +49,7 @@ describe.each(models)('DKG', function (m) {
         }
     })
 
-    describe.each([{p:3, min:2}])('participants', function ({p: participants, min: minSigners}){
+    describe.each([{p:3, min:2}])(`${m.name} - participants`, function ({p: participants, min: minSigners}){
         it("p: " + participants + " - min: " + minSigners, async function(){
             const checkSimRequired = (sims: Zemu[], i:number): {sim: Zemu, created:boolean} => {
                 let created = false;
