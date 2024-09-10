@@ -1,4 +1,4 @@
-import {Asset, LATEST_TRANSACTION_VERSION, Note, Transaction} from '@ironfish/rust-nodejs'
+import {Asset, LATEST_TRANSACTION_VERSION, Note, Transaction, makeTestWitness} from '@ironfish/rust-nodejs'
 
 // Taken from the rust code example
 const NATIVE_ASSET = Buffer.from([81, 243, 58, 47, 20, 249, 39, 53, 229, 98, 220, 101, 138, 86, 57, 39, 157, 220, 163, 213, 7,
@@ -14,9 +14,7 @@ export const buildTx = (publicAddress: string, viewKeys: any, proofKey: any) => 
     let value = BigInt(5);
     let mint_out_note = new Note(publicAddress, value, Buffer.from(""), asset.id(), publicAddress);
 
-    // FIXME missed on the JS bindings
-    let witness = {}
-    // let witness = make_fake_witness(&in_note);
+    let witness = makeTestWitness(in_note);
 
     let transaction = new Transaction(LATEST_TRANSACTION_VERSION);
     transaction.spend(in_note, witness)
@@ -25,8 +23,6 @@ export const buildTx = (publicAddress: string, viewKeys: any, proofKey: any) => 
     transaction.output(mint_out_note)
 
     let intended_fee = BigInt(1);
-    // FIXME missed on the JS bindings
-    //transaction.add_change_notes(publicAddress, publicAddress, intended_fee)
 
     return transaction.build(
         proofKey.nsk,

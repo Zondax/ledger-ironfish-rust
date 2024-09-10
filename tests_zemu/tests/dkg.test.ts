@@ -282,7 +282,7 @@ describe.each(models)('DKG', function (m) {
                         let result = await app.dkgSign(
                             PATH,
                             unsignedTx.publicKeyRandomness(),
-                            "", // FIXME missing frostSigningPackage method on the signingPackage
+                            signingPackage.frostSigningPackage().toString("hex"),
                             commitments[i].toString("hex")
                         );
 

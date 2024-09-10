@@ -1146,7 +1146,7 @@
 "@zondax/ledger-ironfish@../js":
   version "0.0.0"
   dependencies:
-    "@ironfish/rust-nodejs" "file:../../../../../../Library/Caches/Yarn/v6/npm-@zondax-ledger-ironfish-0.0.0-50b815ea-d01d-4394-89fc-e225b46533a3-1725994229302/otros/ironfish/ironfish-rust-nodejs"
+    "@ironfish/rust-nodejs" "file:../../../../../../Library/Caches/Yarn/v6/npm-@zondax-ledger-ironfish-0.0.0-931eec20-9230-4896-89c5-a9457c957958-1725995122905/otros/ironfish/ironfish-rust-nodejs"
     "@zondax/ledger-js" "^0.2.1"
 
 "@zondax/ledger-js@^0.2.1":

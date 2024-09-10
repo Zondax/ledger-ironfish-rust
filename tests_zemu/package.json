@@ -24,7 +24,7 @@
     "upgrade": "bunx npm-check-updates -i"
   },
   "dependencies": {
-    "@ironfish/rust-nodejs": "^2.5.0",
+    "@ironfish/rust-nodejs": "file:../../../otros/ironfish/ironfish-rust-nodejs",
     "@zondax/ledger-ironfish": "../js",
     "@zondax/zemu": "^0.50.2"
   },
