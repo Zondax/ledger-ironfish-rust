@@ -91,6 +91,8 @@ describe.each(models)('DKG', function (m) {
             let round2s: any[] = [];
             let commitments: any[] = [];
             let pks: any[] = [];
+            let viewKeys: any[] = [];
+            let proofKeys: any[] = [];
             let signatures: any[] = [];
 
             try {
@@ -192,6 +194,56 @@ describe.each(models)('DKG', function (m) {
                 console.log(JSON.stringify(pksMap))
                 expect(Object.keys(pksMap).length).toBe(1);
 
+                // Generate view keys from the multisig DKG process just finalized
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgRetrieveKeys(
+                            IronfishKeys.ViewKey
+                        );
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect("viewKey" in result).toBeTruthy()
+                        expect("ivk" in result).toBeTruthy()
+                        expect("ovk" in result).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.viewKey || !result.ivk || !result.ovk)
+                        throw new Error("no view keys found")
+
+                    viewKeys.push({
+                        viewKey: result.viewKey.toString("hex"),
+                        ivk: result.ivk.toString("hex"),
+                        ovk: result.ovk.toString("hex"),
+                    });
+                }
+
+
+                // Generate view keys from the multisig DKG process just finalized
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgRetrieveKeys(
+                            IronfishKeys.ProofGenerationKey
+                        );
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect("ak" in result).toBeTruthy()
+                        expect("nsk" in result).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.ak || !result.nsk)
+                        throw new Error("no proof keys found")
+
+                    proofKeys.push({
+                        ak: result.ak.toString("hex"),
+                        nsk: result.nsk.toString("hex")
+                    });
+                }
 
                 // Craft new tx, to get the tx hash and the public randomness
                 // Pass those values to the following commands
