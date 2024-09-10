@@ -18,48 +18,39 @@
 #![no_std]
 #![no_main]
 
+mod parser;
 mod utils;
 mod app_ui {
     pub mod menu;
 }
-mod ironfish{
-    pub mod sapling;
+mod ironfish {
     pub mod constants;
-    pub mod view_keys;
     pub mod errors;
     pub mod multisig;
     pub mod public_address;
+    pub mod sapling;
+    pub mod view_keys;
 }
 
-mod handlers {
-    pub mod get_version;
-    pub mod dkg_get_identity;
-    pub mod dkg_round_1;
-    pub mod dkg_round_2;
-    pub mod dkg_round_3;
-    pub mod dkg_get_keys;
-    pub mod dkg_commitment;
-    pub mod dkg_sign;
-}
+pub use parser::spends::Spend;
+
+mod handlers;
+pub use handlers::*;
 
 mod nvm {
     pub mod buffer;
     pub mod dkg_keys;
 }
 
-mod context;
 pub mod accumulator;
+mod context;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
-    dkg_get_identity::handler_dkg_get_identity,
-    dkg_round_1::handler_dkg_round_1,
-    dkg_round_2::handler_dkg_round_2,
-    dkg_round_3::handler_dkg_round_3,
-    dkg_get_keys::handler_dkg_get_keys,
+    dkg_commitment::handler_dkg_commitment, dkg_get_identity::handler_dkg_get_identity,
+    dkg_get_keys::handler_dkg_get_keys, dkg_round1::handler_dkg_round_1,
+    dkg_round2::handler_dkg_round_2, dkg_round_3::handler_dkg_round_3, dkg_sign::handler_dkg_sign,
     get_version::handler_get_version,
-    dkg_commitment::handler_dkg_commitment,
-    dkg_sign::handler_dkg_sign,
 };
 
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
@@ -72,9 +63,9 @@ ledger_device_sdk::set_panic!(ledger_device_sdk::exiting_panic);
 // Required for using String, Vec, format!...
 extern crate alloc;
 
+use crate::context::TxContext;
 #[cfg(any(target_os = "stax", target_os = "flex"))]
 use ledger_device_sdk::nbgl::{init_comm, NbglReviewStatus, StatusType};
-use crate::context::TxContext;
 
 // Application status words.
 #[repr(u16)]
@@ -137,34 +128,12 @@ impl TryFrom<ApduHeader> for Instruction {
             (3, 0, 0) => Ok(Instruction::GetVersion),
             (4, 0, 0) => Ok(Instruction::GetAppName),
             (16, 0, 0) => Ok(Instruction::DkgGetIdentity),
-            (17, 0..=2, 0) => {
-                Ok(Instruction::DkgRound1 {
-                    chunk: value.p1
-                })
-            },
-            (18, 0..=2, 0) => {
-                Ok(Instruction::DkgRound2 {
-                    chunk: value.p1
-                })
-            },
-            (19, 0..=2, 0) => {
-                Ok(Instruction::DkgRound3 {
-                    chunk: value.p1
-                })
-            },
-            (20, 0..=2, 0) => {
-                Ok(Instruction::DkgCommitment {
-                    chunk: value.p1
-                })
-            },
-            (21, 0..=2, 0) => {
-                Ok(Instruction::DkgSign {
-                    chunk: value.p1
-                })
-            },
-            (22, 0, 0..=2) => Ok(Instruction::DkgGetKeys{
-                key_type: value.p2
-            }),
+            (17, 0..=2, 0) => Ok(Instruction::DkgRound1 { chunk: value.p1 }),
+            (18, 0..=2, 0) => Ok(Instruction::DkgRound2 { chunk: value.p1 }),
+            (19, 0..=2, 0) => Ok(Instruction::DkgRound3 { chunk: value.p1 }),
+            (20, 0..=2, 0) => Ok(Instruction::DkgCommitment { chunk: value.p1 }),
+            (21, 0..=2, 0) => Ok(Instruction::DkgSign { chunk: value.p1 }),
+            (22, 0, 0..=2) => Ok(Instruction::DkgGetKeys { key_type: value.p2 }),
             (3..=4, _, _) => Err(AppSW::WrongP1P2),
             (17..=22, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
@@ -227,6 +196,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
         Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
         Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
-        Instruction::DkgGetKeys {key_type} => handler_dkg_get_keys(comm, key_type)
+        Instruction::DkgGetKeys { key_type } => handler_dkg_get_keys(comm, key_type),
     }
 }
