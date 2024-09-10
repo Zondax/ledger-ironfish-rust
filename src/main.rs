@@ -94,6 +94,7 @@ pub enum AppSW {
     VersionParsingFail = 0xB00A,
     DkgRound2Fail = 0xB00B,
     DkgRound3Fail = 0xB00C,
+    InvalidKeyType = 0xB00D,
     WrongApduLength = StatusWords::BadLen as u16,
     Ok = 0x9000,
 }
@@ -114,7 +115,7 @@ pub enum Instruction {
     DkgRound3 { chunk: u8 },
     DkgCommitment { chunk: u8 },
     DkgSign { chunk: u8 },
-    DkgGetKeys,
+    DkgGetKeys { key_type: u8 },
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -161,8 +162,11 @@ impl TryFrom<ApduHeader> for Instruction {
                     chunk: value.p1
                 })
             },
-            (22, 0, 0) => Ok(Instruction::DkgGetKeys),
-            (3..=6, _, _) => Err(AppSW::WrongP1P2),
+            (22, 0, 0..=2) => Ok(Instruction::DkgGetKeys{
+                key_type: value.p2
+            }),
+            (3..=4, _, _) => Err(AppSW::WrongP1P2),
+            (17..=22, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
         }
     }
@@ -223,6 +227,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
         Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
         Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
-        Instruction::DkgGetKeys => handler_dkg_get_keys(comm)
+        Instruction::DkgGetKeys {key_type} => handler_dkg_get_keys(comm, key_type)
     }
 }

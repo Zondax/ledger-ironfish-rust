@@ -53,6 +53,7 @@ pub struct SaplingKey {
 impl SaplingKey {
     /// Construct a new key from an array of bytes
     pub fn new(spending_key: [u8; SPEND_KEY_SIZE]) -> Result<Self, IronfishError> {
+        // ask
         let spend_authorizing_key =
             jubjub::Fr::from_bytes_wide(&Self::convert_key(spending_key, 0));
 
@@ -60,21 +61,26 @@ impl SaplingKey {
             return Err(IronfishError::IllegalValue);
         }
 
+        // nsk
         let proof_authorizing_key =
             jubjub::Fr::from_bytes_wide(&Self::convert_key(spending_key, 1));
 
+        // ovk
         let mut outgoing_viewing_key = [0; SPEND_KEY_SIZE];
         outgoing_viewing_key[0..SPEND_KEY_SIZE]
             .clone_from_slice(&Self::convert_key(spending_key, 2)[0..SPEND_KEY_SIZE]);
         let outgoing_viewing_key = OutgoingViewKey {
             view_key: outgoing_viewing_key,
         };
+        // ak
         let authorizing_key = AffinePoint::from(SPENDING_KEY_GENERATOR.multiply_bits(&spend_authorizing_key.to_bytes()));
+        //nk
         let nullifier_deriving_key = AffinePoint::from(PROOF_GENERATION_KEY_GENERATOR.multiply_bits(&proof_authorizing_key.to_bytes()));
         let view_key = ViewKey {
             authorizing_key,
             nullifier_deriving_key,
         };
+        // ivk
         let incoming_viewing_key = IncomingViewKey {
             view_key: Self::hash_viewing_key(&authorizing_key, &nullifier_deriving_key)?,
         };
