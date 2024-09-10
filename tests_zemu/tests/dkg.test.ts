@@ -17,6 +17,7 @@
 import Zemu from '@zondax/zemu'
 import {defaultOptions, models, PATH} from './common'
 import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
+import { isValidPublicAddress } from '@ironfish/rust-nodejs'
 
 jest.setTimeout(4500000)
 
@@ -47,7 +48,7 @@ describe.each(models)('DKG', function (m) {
         }
     })
 
-    describe.each([{p:2, min:2}])('participants', function ({p: participants, min: minSigners}){
+    describe.each([{p:3, min:2}])('participants', function ({p: participants, min: minSigners}){
         it("p: " + participants + " - min: " + minSigners, async function(){
             const checkSimRequired = (sims: Zemu[], i:number): {sim: Zemu, created:boolean} => {
                 let created = false;
@@ -183,6 +184,7 @@ describe.each(models)('DKG', function (m) {
                     if(!result.publicAddress)
                         throw new Error("no commitment found")
 
+                    expect(isValidPublicAddress(result.publicAddress.toString("hex")))
                     pks.push(result.publicAddress.toString("hex"));
                 }
 
