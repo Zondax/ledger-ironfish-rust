@@ -32,7 +32,7 @@ mod ironfish {
     pub mod view_keys;
 }
 
-pub use parser::spends::Spend;
+pub use parser::Spends;
 
 mod handlers;
 pub use handlers::*;
@@ -47,10 +47,8 @@ mod context;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
-    dkg_commitment::handler_dkg_commitment, dkg_get_identity::handler_dkg_get_identity,
-    dkg_get_keys::handler_dkg_get_keys, dkg_round1::handler_dkg_round_1,
-    dkg_round2::handler_dkg_round_2, dkg_round_3::handler_dkg_round_3, dkg_sign::handler_dkg_sign,
-    get_version::handler_get_version,
+    handler_dkg_commitment, handler_dkg_get_identity, handler_dkg_get_keys, handler_dkg_round_1,
+    handler_dkg_round_2, handler_dkg_round_3, handler_dkg_sign, handler_get_version,
 };
 
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
