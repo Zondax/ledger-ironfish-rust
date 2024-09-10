@@ -43,6 +43,7 @@ pub struct Tx<'a> {
     round_1_secret_package: &'a [u8],
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_2\0");
 

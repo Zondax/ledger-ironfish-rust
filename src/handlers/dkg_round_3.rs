@@ -74,6 +74,7 @@ impl Deserializable for CombinedPublicPackage {
     }
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_3\0");
 
