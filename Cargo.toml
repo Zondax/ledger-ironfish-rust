@@ -16,7 +16,7 @@ hex = { version = "0.4.3", default-features = false, features = [
 ] }
 numtoa = "0.2.4"
 
-ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "400f7c5e8c53e7dda3bf3be923212ae840378a1e400f7c5e8c53e7dda3bf3be923212ae840378a1e", default-features = false, features = [
+ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "bcc9ceaf298c63f116b790547ececf3052ada7a8", default-features = false, features = [
     "dkg",
     "ledger",
     "signing",
