@@ -18,6 +18,7 @@
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
 use ironfish_frost::dkg::group_key::{GroupSecretKey, GROUP_SECRET_KEY_LEN};
+use ironfish_frost::frost::keys::PublicKeyPackage as FrostPublicKeyPackage;
 use ironfish_frost::dkg::round3::PublicKeyPackage;
 use ledger_device_sdk::io::{Comm, Event};
 use crate::ironfish::multisig::{derive_account_keys, MultisigAccountKeys};
@@ -34,9 +35,9 @@ pub fn handler_dkg_get_keys(
     zlog_stack("start handler_dkg_get_keys\0");
 
     let group_secret_key = load_group_secret_key();
-    let public_key_package = load_public_key_package();
+    let frost_public_key_package = load_frost_public_key_package();
 
-    let verifying_key_vec = public_key_package.verifying_key().serialize().unwrap();
+    let verifying_key_vec = frost_public_key_package.verifying_key().serialize().unwrap();
     let verifying_key = <&[u8; 32]>::try_from(verifying_key_vec.as_slice()).unwrap();
 
     let account_keys = derive_account_keys(verifying_key, &group_secret_key);
@@ -60,13 +61,13 @@ fn load_group_secret_key() -> &'static GroupSecretKey{
 }
 
 #[inline(never)]
-fn load_public_key_package() -> PublicKeyPackage{
-    zlog_stack("start load_public_key_package\0");
+fn load_frost_public_key_package() -> FrostPublicKeyPackage{
+    zlog_stack("start load_frost_public_key_package\0");
 
     let start = DkgKeys.get_u16(4);
     let len = DkgKeys.get_u16(start);
 
-    PublicKeyPackage::deserialize_from(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
+    FrostPublicKeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
 }
 
 #[inline(never)]
