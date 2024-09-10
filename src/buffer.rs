@@ -2,7 +2,7 @@ use ledger_device_sdk::nvm::*;
 use ledger_device_sdk::NVMData;
 
 // This is necessary to store the object in NVM and not in RAM
-pub const BUFFER_SIZE: usize = 4000;
+pub const BUFFER_SIZE: usize = 7000;
 #[link_section = ".nvm_data"]
 static mut DATA: NVMData<AlignedStorage<[u8; BUFFER_SIZE]>> =
     NVMData::new(AlignedStorage::new([0u8; BUFFER_SIZE]));

@@ -15,11 +15,16 @@
  *  limitations under the License.
  *****************************************************************************/
 
+use core::mem::MaybeUninit;
+use core::ptr::addr_of_mut;
+
 use crate::accumulator::accumulate_data;
 use crate::buffer::Buffer;
 use crate::context::TxContext;
+use crate::error::ParserError;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
-use crate::utils::zlog_stack;
+use crate::parser::{parse_round, RawField};
+use crate::utils::{canary, zlog_stack};
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
 use ironfish_frost::dkg;
@@ -32,12 +37,13 @@ use ledger_device_sdk::random::LedgerRng;
 
 const MAX_APDU_SIZE: usize = 253;
 
-pub struct Tx {
+pub struct Tx<'a> {
     identity_index: u8,
-    round_1_public_packages: Vec<PublicPackage>,
-    round_1_secret_package: Vec<u8>,
+    round_1_public_packages: RawField<'a, PublicPackage>,
+    round_1_secret_package: &'a [u8],
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_2\0");
 
@@ -47,15 +53,17 @@ pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     }
 
     // Try to deserialize the transaction
-    let tx: Tx = parse_tx(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
+    let mut tx = MaybeUninit::<Tx>::uninit();
+    parse_tx(ctx.buffer_pos, &mut tx).map_err(|_| AppSW::TxParsingFail)?;
+
+    let tx = unsafe { tx.assume_init() };
+
     // Reset transaction context as we want to release space on the heap
     ctx.reset();
 
     let dkg_secret = compute_dkg_secret(tx.identity_index);
     let (mut round2_secret_package_vec, round2_public_package) =
-        compute_dkg_round_2(&dkg_secret, &tx).map_err(|_| AppSW::DkgRound2Fail)?;
-    drop(tx);
-    drop(dkg_secret);
+        compute_dkg_round_2(dkg_secret, tx).map_err(|_| AppSW::DkgRound2Fail)?;
 
     let response = generate_response(&mut round2_secret_package_vec, &round2_public_package);
     drop(round2_secret_package_vec);
@@ -64,7 +72,7 @@ pub fn handler_dkg_round_2(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     send_apdu_chunks(comm, &response)
 }
 
-fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
+fn parse_tx(max_buffer_pos: usize, out: &mut MaybeUninit<Tx<'static>>) -> Result<(), ParserError> {
     zlog_stack("start parse_tx round2\0");
 
     let mut tx_pos: usize = 0;
@@ -72,50 +80,46 @@ fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
     let identity_index = Buffer.get_element(tx_pos);
     tx_pos += 1;
 
-    let elements = Buffer.get_element(tx_pos);
-    tx_pos += 1;
+    let mut num_elements = 0;
+    let mut element_len = 0;
+
+    let (round_1_public_packages, mut tx_pos) =
+        parse_round::<PublicPackage>(tx_pos, &mut num_elements, &mut element_len)
+            .map(|(round2, tx_pos)| (RawField::new(num_elements, element_len, round2), tx_pos))?;
+
+    canary();
 
     let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
         as usize;
     tx_pos += 2;
 
-    let mut round_1_public_packages: Vec<PublicPackage> = Vec::new();
-    for _i in 0..elements {
-        let public_package =
-            PublicPackage::deserialize_from(Buffer.get_slice(tx_pos, tx_pos + len)).unwrap();
-        tx_pos += len;
-
-        round_1_public_packages.push(public_package);
-    }
-
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
-        as usize;
-    tx_pos += 2;
-
-    let round_1_secret_package = Buffer.get_slice(tx_pos, tx_pos + len).to_vec();
+    let round_1_secret_package = Buffer.get_slice(tx_pos, tx_pos + len);
     tx_pos += len;
 
     if tx_pos != max_buffer_pos {
-        return Err("invalid payload");
+        return Err(ParserError::InvalidPayload);
     }
 
-    Ok(Tx {
-        round_1_secret_package,
-        round_1_public_packages,
-        identity_index,
-    })
+    let out = out.as_mut_ptr();
+    unsafe {
+        addr_of_mut!((*out).round_1_secret_package).write(round_1_secret_package);
+        addr_of_mut!((*out).round_1_public_packages).write(round_1_public_packages);
+        addr_of_mut!((*out).identity_index).write(identity_index);
+    }
+
+    Ok(())
 }
 
 fn compute_dkg_round_2(
-    secret: &Secret,
-    tx: &Tx,
+    secret: Secret,
+    tx: Tx<'static>,
 ) -> Result<(Vec<u8>, CombinedPublicPackage), IronfishFrostError> {
     zlog_stack("start compute_dkg_round_2\0");
 
     let mut rng = LedgerRng {};
 
     dkg::round2::round2(
-        secret,
+        &secret,
         &tx.round_1_secret_package,
         &tx.round_1_public_packages,
         &mut rng,

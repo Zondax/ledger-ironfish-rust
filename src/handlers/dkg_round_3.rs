@@ -22,9 +22,9 @@ use core::mem::MaybeUninit;
 use crate::accumulator::accumulate_data;
 use crate::buffer::Buffer;
 use crate::context::TxContext;
-use crate::deserialize::{Deserializable, RawField};
 use crate::error::ParserError;
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
+use crate::parser::{parse_round, Deserializable, RawField};
 use crate::utils::{canary, zlog_stack};
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
@@ -74,6 +74,7 @@ impl Deserializable for CombinedPublicPackage {
     }
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_3\0");
 
@@ -101,36 +102,6 @@ pub fn handler_dkg_round_3(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     drop(public_key_package);
 
     send_apdu_chunks(comm, &response)
-}
-
-#[inline(never)]
-fn parse_round<T: Deserializable>(
-    mut tx_pos: usize,
-    num_elements: &mut u8,
-    element_len: &mut usize,
-) -> Result<(&'static [u8], usize), ParserError> {
-    zlog_stack("parse_round\0");
-    let elements = Buffer.get_element(tx_pos);
-    tx_pos += 1;
-
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos + 1) as u16))
-        as usize;
-    tx_pos += 2;
-
-    let start = tx_pos;
-    for _ in 0..elements {
-        canary();
-        T::from_bytes_check(Buffer.get_slice(start, tx_pos + len))?;
-        tx_pos += len;
-    }
-
-    *num_elements = elements;
-    *element_len = len;
-
-    let slice = Buffer.get_slice(start, tx_pos);
-    zlog_stack("done parse_round\0");
-
-    Ok((slice, tx_pos))
 }
 
 #[inline(never)]

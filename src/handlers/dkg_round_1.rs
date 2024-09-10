@@ -35,6 +35,7 @@ pub struct Tx {
     min_signers: u8,
 }
 
+#[inline(never)]
 pub fn handler_dkg_round_1(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_round_1\0");
 
@@ -48,6 +49,7 @@ pub fn handler_dkg_round_1(comm: &mut Comm, chunk: u8, ctx: &mut TxContext) -> R
     compute_dkg_round_1(comm, &dkg_secret, &mut tx)
 }
 
+#[inline(never)]
 fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
     let mut tx_pos: usize = 0;
 
@@ -79,6 +81,7 @@ fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str> {
     })
 }
 
+#[inline(never)]
 fn compute_dkg_round_1(comm: &mut Comm, secret: &Secret, tx: &mut Tx) -> Result<(), AppSW> {
     zlog("start compute_dkg_round_1\n\0");
 
