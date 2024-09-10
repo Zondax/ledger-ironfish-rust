@@ -451,6 +451,9 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/retry/-/retry-0.3.0.tgz#6d86b8cb322660f03d3f0aa94b99bdd8e172d570"
   integrity sha512-d2CGZR2o7fS6sWB7DG/3a95bGKQyHMACZ5aW8qGkkqQpUoZV6C0X7Pc7l4ZNMZkfNBf4VWNe9E1jRsf0G146Ew==
 
+"@ironfish/rust-nodejs@file:../../../otros/ironfish/ironfish-rust-nodejs":
+  version "2.5.0"
+
 "@istanbuljs/load-nyc-config@^1.0.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@istanbuljs/load-nyc-config/-/load-nyc-config-1.1.0.tgz#fd3db1d59ecf7cf121e80650bb86712f9b55eced"
@@ -1143,6 +1146,7 @@
 "@zondax/ledger-ironfish@../js":
   version "0.0.0"
   dependencies:
+    "@ironfish/rust-nodejs" "file:../../../../../../Library/Caches/Yarn/v6/npm-@zondax-ledger-ironfish-0.0.0-50b815ea-d01d-4394-89fc-e225b46533a3-1725994229302/otros/ironfish/ironfish-rust-nodejs"
     "@zondax/ledger-js" "^0.2.1"
 
 "@zondax/ledger-js@^0.2.1":
