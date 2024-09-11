@@ -20,9 +20,11 @@ import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
 import {
     isValidPublicAddress,
     multisig,
-    TransactionPosted,
     UnsignedTransaction
 } from '@ironfish/rust-nodejs'
+import {
+    Transaction
+} from '@ironfish/sdk'
 import {buildTx} from "./utils";
 import aggregateRawSignatureShares = multisig.aggregateRawSignatureShares;
 
@@ -355,12 +357,11 @@ describe.each(models)('DKG', function (m) {
                     unsignedTxRaw.toString("hex"),
                     signingPackage.frostSigningPackage().toString("hex"),
                     signatures)
-                const signedTx = new TransactionPosted(signedTxRaw)
-                expect(signedTx.spendsLength()).toBe(1);
+                const signedTx = new Transaction(signedTxRaw)
 
-                //expect(signedTx.outputsLength.len(), 3);
-                //expect(signedTx.mintsLength.len(), 1);
-                //expect(signedTx.burnsLength.len(), 0);
+                expect(signedTx.spends.length).toBe(1);
+                expect(signedTx.mints.length).toBe(1);
+                expect(signedTx.burns.length).toBe(0);
             } finally {
                 for (let i = 0; i < globalSims.length; i++)
                     await globalSims[i].close()

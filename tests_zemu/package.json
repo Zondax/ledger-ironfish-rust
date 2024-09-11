@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@ironfish/rust-nodejs": "file:../../../otros/ironfish/ironfish-rust-nodejs",
+    "@ironfish/sdk": "^2.5.0",
     "@zondax/ledger-ironfish": "../js",
     "@zondax/zemu": "^0.50.2"
   },
