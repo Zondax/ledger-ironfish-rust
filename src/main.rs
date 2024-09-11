@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate Rust.
+ *   Ledger App Ironfish Rust.
  *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,24 +20,51 @@
 
 mod utils;
 mod app_ui {
-    pub mod address;
     pub mod menu;
-    pub mod sign;
 }
-mod handlers {
-    pub mod get_public_key;
-    pub mod get_version;
-    pub mod sign_tx;
+mod ironfish{
+    pub mod sapling;
+    pub mod constants;
+    pub mod view_keys;
+    pub mod errors;
+    pub mod multisig;
+    pub mod public_address;
 }
 
-mod settings;
+mod handlers {
+    pub mod get_version;
+    pub mod dkg_get_identity;
+    pub mod dkg_round_1;
+    pub mod dkg_round_2;
+    pub mod dkg_round_3;
+    pub mod dkg_get_keys;
+    pub mod dkg_commitments;
+    pub mod dkg_nonces;
+    pub mod dkg_sign;
+    pub mod dkg_get_public_package;
+}
+
+mod nvm {
+    pub mod buffer;
+    pub mod dkg_keys;
+}
+
+mod context;
+pub mod accumulator;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
-    get_public_key::handler_get_public_key,
+    dkg_get_identity::handler_dkg_get_identity,
+    dkg_round_1::handler_dkg_round_1,
+    dkg_round_2::handler_dkg_round_2,
+    dkg_round_3::handler_dkg_round_3,
+    dkg_get_keys::handler_dkg_get_keys,
     get_version::handler_get_version,
-    sign_tx::{handler_sign_tx, TxContext},
+    dkg_commitments::handler_dkg_commitments,
+    dkg_nonces::handler_dkg_nonces,
+    dkg_sign::handler_dkg_sign,
 };
+
 use ledger_device_sdk::io::{ApduHeader, Comm, Event, Reply, StatusWords};
 #[cfg(feature = "pending_review_screen")]
 #[cfg(not(any(target_os = "stax", target_os = "flex")))]
@@ -50,15 +77,8 @@ extern crate alloc;
 
 #[cfg(any(target_os = "stax", target_os = "flex"))]
 use ledger_device_sdk::nbgl::{init_comm, NbglReviewStatus, StatusType};
-
-// P2 for last APDU to receive.
-const P2_SIGN_TX_LAST: u8 = 0x00;
-// P2 for more APDU to receive.
-const P2_SIGN_TX_MORE: u8 = 0x80;
-// P1 for first APDU number.
-const P1_SIGN_TX_START: u8 = 0x00;
-// P1 for maximum APDU number.
-const P1_SIGN_TX_MAX: u8 = 0x03;
+use crate::context::TxContext;
+use crate::handlers::dkg_get_public_package::handler_dkg_get_public_package;
 
 // Application status words.
 #[repr(u16)]
@@ -76,6 +96,19 @@ pub enum AppSW {
     TxSignFail = 0xB008,
     KeyDeriveFail = 0xB009,
     VersionParsingFail = 0xB00A,
+    DkgRound2Fail = 0xB00B,
+    DkgRound3Fail = 0xB00C,
+    InvalidKeyType = 0xB00D,
+    InvalidIdentity = 0xB00E,
+    InvalidPayload = 0xB00F,
+    BufferOutOfBounds = 0xB010,
+    InvalidSigningPackage = 0xB011,
+    InvalidRandomizer = 0xB012,
+    InvalidSigningNonces = 0xB013,
+    InvalidIdentityIndex = 0xB014,
+    InvalidKeyPackage = 0xB015,
+    InvalidPublicPackage = 0xB016,
+    InvalidGroupSecretKey = 0xB017,
     WrongApduLength = StatusWords::BadLen as u16,
     Ok = 0x9000,
 }
@@ -90,8 +123,15 @@ impl From<AppSW> for Reply {
 pub enum Instruction {
     GetVersion,
     GetAppName,
-    GetPubkey { display: bool },
-    SignTx { chunk: u8, more: bool },
+    DkgGetIdentity,
+    DkgGetPublicPackage,
+    DkgRound1 { chunk: u8 },
+    DkgRound2 { chunk: u8 },
+    DkgRound3 { chunk: u8 },
+    DkgCommitments { chunk: u8 },
+    DkgSign { chunk: u8 },
+    DkgGetKeys { key_type: u8 },
+    DkgNonces { chunk: u8 },
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -112,39 +152,47 @@ impl TryFrom<ApduHeader> for Instruction {
         match (value.ins, value.p1, value.p2) {
             (3, 0, 0) => Ok(Instruction::GetVersion),
             (4, 0, 0) => Ok(Instruction::GetAppName),
-            (5, 0 | 1, 0) => Ok(Instruction::GetPubkey {
-                display: value.p1 != 0,
-            }),
-            (6, P1_SIGN_TX_START, P2_SIGN_TX_MORE)
-            | (6, 1..=P1_SIGN_TX_MAX, P2_SIGN_TX_LAST | P2_SIGN_TX_MORE) => {
-                Ok(Instruction::SignTx {
-                    chunk: value.p1,
-                    more: value.p2 == P2_SIGN_TX_MORE,
+            (16, 0, 0) => Ok(Instruction::DkgGetIdentity),
+            (17, 0..=2, 0) => {
+                Ok(Instruction::DkgRound1 {
+                    chunk: value.p1
                 })
-            }
-            (3..=6, _, _) => Err(AppSW::WrongP1P2),
+            },
+            (18, 0..=2, 0) => {
+                Ok(Instruction::DkgRound2 {
+                    chunk: value.p1
+                })
+            },
+            (19, 0..=2, 0) => {
+                Ok(Instruction::DkgRound3 {
+                    chunk: value.p1
+                })
+            },
+            (20, 0..=2, 0) => {
+                Ok(Instruction::DkgCommitments {
+                    chunk: value.p1
+                })
+            },
+            (21, 0..=2, 0) => {
+                Ok(Instruction::DkgSign {
+                    chunk: value.p1
+                })
+            },
+            (22, 0, 0..=2) => Ok(Instruction::DkgGetKeys{
+                key_type: value.p2
+            }),
+            (23, 0..=2, 0) => {
+                Ok(Instruction::DkgNonces {
+                    chunk: value.p1
+                })
+            },
+            (24, 0..=2, 0) => {
+                Ok(Instruction::DkgGetPublicPackage)
+            },
+            (3..=4, _, _) => Err(AppSW::WrongP1P2),
+            (17..=22, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
         }
-    }
-}
-
-#[cfg(any(target_os = "stax", target_os = "flex"))]
-fn show_status_if_needed(ins: &Instruction, tx_ctx: &TxContext, status: &AppSW) {
-    let (show_status, status_type) = match (ins, status) {
-        (Instruction::GetPubkey { display: true }, AppSW::Deny | AppSW::Ok) => {
-            (true, StatusType::Address)
-        }
-        (Instruction::SignTx { .. }, AppSW::Deny | AppSW::Ok) if tx_ctx.finished() => {
-            (true, StatusType::Transaction)
-        }
-        (_, _) => (false, StatusType::Transaction),
-    };
-
-    if show_status {
-        let success = *status == AppSW::Ok;
-        NbglReviewStatus::new()
-            .status_type(status_type)
-            .show(success);
     }
 }
 
@@ -153,7 +201,7 @@ extern "C" fn sample_main() {
     // Create the communication manager, and configure it to accept only APDU from the 0xe0 class.
     // If any APDU with a wrong class value is received, comm will respond automatically with
     // BadCla status word.
-    let mut comm = Comm::new().set_expected_cla(0xe0);
+    let mut comm = Comm::new().set_expected_cla(0x59);
 
     // Initialize reference to Comm instance for NBGL
     // API calls.
@@ -179,6 +227,7 @@ extern "C" fn sample_main() {
                     AppSW::Ok
                 }
                 Err(sw) => {
+                    tx_ctx.reset();
                     comm.reply(sw);
                     sw
                 }
@@ -197,7 +246,14 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
             Ok(())
         }
         Instruction::GetVersion => handler_get_version(comm),
-        Instruction::GetPubkey { display } => handler_get_public_key(comm, *display),
-        Instruction::SignTx { chunk, more } => handler_sign_tx(comm, *chunk, *more, ctx),
+        Instruction::DkgGetIdentity => handler_dkg_get_identity(comm),
+        Instruction::DkgRound1 { chunk } => handler_dkg_round_1(comm, *chunk, ctx),
+        Instruction::DkgRound2 { chunk } => handler_dkg_round_2(comm, *chunk, ctx),
+        Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
+        Instruction::DkgCommitments { chunk } => handler_dkg_commitments(comm, *chunk, ctx),
+        Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
+        Instruction::DkgGetKeys {key_type} => handler_dkg_get_keys(comm, key_type),
+        Instruction::DkgNonces { chunk } => handler_dkg_nonces(comm, *chunk, ctx),
+        Instruction::DkgGetPublicPackage => handler_dkg_get_public_package(comm),
     }
 }

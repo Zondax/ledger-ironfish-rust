@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate Rust.
+ *   Ledger App Ironfish Rust.
  *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ use crate::AppSW;
 use core::str::FromStr;
 use ledger_device_sdk::io;
 
+#[inline(never)]
 pub fn handler_get_version(comm: &mut io::Comm) -> Result<(), AppSW> {
     if let Some((major, minor, patch)) = parse_version_string(env!("CARGO_PKG_VERSION")) {
         comm.append(&[major, minor, patch]);
