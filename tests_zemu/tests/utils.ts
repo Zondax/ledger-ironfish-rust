@@ -1,14 +1,10 @@
-import {Asset, LATEST_TRANSACTION_VERSION, Note, Transaction, makeTestWitness} from '@ironfish/rust-nodejs'
-
-// Taken from the rust code example
-const NATIVE_ASSET = Buffer.from([81, 243, 58, 47, 20, 249, 39, 53, 229, 98, 220, 101, 138, 86, 57, 39, 157, 220, 163, 213, 7,
-    154, 109, 18, 66, 178, 165, 136, 169, 203, 244, 76,
-]);
+import {Asset, LATEST_TRANSACTION_VERSION, Note, Transaction, UnsignedTransaction, makeTestWitness} from '@ironfish/rust-nodejs'
 
 export const buildTx = (publicAddress: string, viewKeys: any, proofKey: any) => {
+    console.log("here")
     // create raw/proposed transaction
-    let in_note = new Note(publicAddress, BigInt(42), Buffer.from(""), NATIVE_ASSET, publicAddress);
-    let out_note = new Note(publicAddress, BigInt(40), Buffer.from(""), NATIVE_ASSET, publicAddress);
+    let in_note = new Note(publicAddress, BigInt(42), Buffer.from(""), Asset.nativeId(), publicAddress);
+    let out_note = new Note(publicAddress, BigInt(40), Buffer.from(""), Asset.nativeId(), publicAddress);
     let asset = new Asset(publicAddress, "Testcoin", "A really cool coin")
     
     let value = BigInt(5);
