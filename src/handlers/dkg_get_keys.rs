@@ -34,8 +34,8 @@ pub fn handler_dkg_get_keys(
 ) -> Result<(), AppSW> {
     zlog_stack("start handler_dkg_get_keys\0");
 
-    let group_secret_key = load_group_secret_key();
-    let frost_public_key_package = load_frost_public_key_package();
+    let group_secret_key = DkgKeys.load_group_secret_key()?;
+    let frost_public_key_package = DkgKeys.load_frost_public_key_package()?;
 
     let verifying_key_vec = frost_public_key_package.verifying_key().serialize().unwrap();
     let verifying_key = <&[u8; 32]>::try_from(verifying_key_vec.as_slice()).unwrap();
@@ -46,28 +46,6 @@ pub fn handler_dkg_get_keys(
     drop(account_keys);
 
     send_apdu_chunks(comm, resp.as_slice())
-}
-
-
-#[inline(never)]
-fn load_group_secret_key() -> &'static GroupSecretKey{
-    zlog_stack("start load_group_secret_key\0");
-
-    let start = DkgKeys.get_u16(2);
-    let len = DkgKeys.get_u16(start);
-
-    let raw = DkgKeys.get_slice(start+2, start+2+len);
-    <&[u8; GROUP_SECRET_KEY_LEN]>::try_from(raw).unwrap()
-}
-
-#[inline(never)]
-fn load_frost_public_key_package() -> FrostPublicKeyPackage{
-    zlog_stack("start load_frost_public_key_package\0");
-
-    let start = DkgKeys.get_u16(4);
-    let len = DkgKeys.get_u16(start);
-
-    FrostPublicKeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
 }
 
 #[inline(never)]

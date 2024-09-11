@@ -44,7 +44,7 @@ pub fn handler_dkg_sign(
     }
 
     let (frost_signing_package, nonces, randomizer) = parse_tx(&ctx.buffer)?;
-    let key_package = load_key_package();
+    let key_package = DkgKeys.load_key_package()?;
 
     zlog_stack("start signing\0");
     let signature = round2::sign(
@@ -58,17 +58,6 @@ pub fn handler_dkg_sign(
     let sig = signature.unwrap().serialize();
 
     send_apdu_chunks(comm, sig)
-}
-
-
-#[inline(never)]
-fn load_key_package() -> KeyPackage{
-    zlog_stack("start load_key_package\0");
-
-    let start = DkgKeys.get_u16(0);
-    let len = DkgKeys.get_u16(start);
-
-    KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
 }
 
 #[inline(never)]

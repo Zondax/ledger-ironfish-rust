@@ -73,7 +73,7 @@ fn parse_round_1_public_packages(buffer: &Buffer, mut tx_pos:usize) -> Result<(V
     let mut round_1_public_packages : Vec<PublicPackage> = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
         let data = buffer.get_slice(tx_pos,tx_pos+len)?;
-        let public_package = PublicPackage::deserialize_from(data).map_err(|_| AppSW::InvalidPublicPackageRound1)?;
+        let public_package = PublicPackage::deserialize_from(data).map_err(|_| AppSW::InvalidPublicPackage)?;
         tx_pos += len;
 
         round_1_public_packages.push(public_package);
