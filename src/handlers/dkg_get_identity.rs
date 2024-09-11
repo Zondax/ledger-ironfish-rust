@@ -30,7 +30,7 @@ pub fn handler_dkg_get_identity(comm: &mut Comm) -> Result<(), AppSW> {
     let data = data_vec.as_slice();
 
     if data.len() != 1 || data[0] > MAX_IDENTITY_INDEX{
-        return Err(AppSW::TxParsingFail);
+        return Err(AppSW::InvalidIdentityIndex);
     }
 
     let secret = compute_dkg_secret(data[0]);

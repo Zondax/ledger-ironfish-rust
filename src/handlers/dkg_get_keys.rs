@@ -110,7 +110,7 @@ fn send_apdu_chunks(comm: &mut Comm, data: &[u8]) -> Result<(), AppSW> {
         if i < total_chunks - 1 {
             comm.reply_ok();
             match comm.next_event() {
-                Event::Command(Instruction::DkgRound2 { chunk: 0 }) => {}
+                Event::Command(Instruction::DkgGetKeys) => {}
                 _ => {},
             }
         }

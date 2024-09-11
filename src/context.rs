@@ -1,6 +1,7 @@
+use crate::nvm::buffer::Buffer;
 
 pub struct TxContext {
-    pub buffer_pos: usize,
+    pub buffer: Buffer,
     pub done: bool
 }
 
@@ -9,14 +10,14 @@ impl TxContext {
     // Constructor
     pub fn new() -> TxContext {
         TxContext {
-            buffer_pos: 0,
+            buffer: Buffer::new(),
             done: false
         }
     }
 
     // Implement reset for TxInfo
     pub fn reset(&mut self) {
-        self.buffer_pos = 0;
+        self.buffer.reset();
         self.done = false;
     }
 }

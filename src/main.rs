@@ -95,6 +95,15 @@ pub enum AppSW {
     DkgRound2Fail = 0xB00B,
     DkgRound3Fail = 0xB00C,
     InvalidKeyType = 0xB00D,
+    InvalidIdentity = 0xB00E,
+    InvalidPayload = 0xB00F,
+    BufferOutOfBounds = 0xB010,
+    InvalidSigningPackage = 0xB011,
+    InvalidRandomizer = 0xB012,
+    InvalidSigningNonces = 0xB013,
+    InvalidIdentityIndex = 0xB014,
+    InvalidKeyPackage = 0xB015,
+    InvalidPublicPackageRound1 = 0xB016,
     WrongApduLength = StatusWords::BadLen as u16,
     Ok = 0x9000,
 }
@@ -203,6 +212,7 @@ extern "C" fn sample_main() {
                     AppSW::Ok
                 }
                 Err(sw) => {
+                    tx_ctx.reset();
                     comm.reply(sw);
                     sw
                 }

@@ -28,6 +28,7 @@ use crate::context::TxContext;
 use crate::utils::{zlog, zlog_stack};
 
 const MAX_APDU_SIZE: usize = 253;
+const IDENTITY_LEN: usize = 129;
 
 pub struct Tx {
     identity_index: u8,
@@ -48,33 +49,36 @@ pub fn handler_dkg_round_1(
         return Ok(());
     }
 
-    let mut tx: Tx = parse_tx(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
+    let mut tx: Tx = parse_tx(&ctx.buffer)?;
     let dkg_secret = compute_dkg_secret(tx.identity_index);
+
     compute_dkg_round_1(comm, &dkg_secret, &mut tx)
 }
 
-fn parse_tx(max_buffer_pos: usize) -> Result<Tx, &'static str>{
+fn parse_tx(buffer: &Buffer) -> Result<Tx, AppSW>{
     let mut tx_pos:usize = 0;
 
-    let identity_index = Buffer.get_element(tx_pos);
+    let identity_index = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let elements = Buffer.get_element(tx_pos);
+    let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
     let mut identities:Vec<Identity> = Vec::new();
     for _i in 0..elements {
-        let identity = Identity::deserialize_from(Buffer.get_slice(tx_pos,tx_pos+129)).unwrap();
-        tx_pos += 129;
+        let data = buffer.get_slice(tx_pos,tx_pos+IDENTITY_LEN)?;
+        let identity
+            = Identity::deserialize_from(data).map_err(|_| AppSW::InvalidIdentity)?;
+        tx_pos += IDENTITY_LEN;
 
         identities.push(identity);
     }
 
-    let min_signers = Buffer.get_element(tx_pos);
+    let min_signers = buffer.get_element(tx_pos)?;
     tx_pos += 1;
 
-    if tx_pos != max_buffer_pos {
-        return Err("invalid payload");
+    if tx_pos != buffer.pos {
+        return Err(AppSW::InvalidPayload);
     }
 
     Ok(Tx{identities, min_signers, identity_index})

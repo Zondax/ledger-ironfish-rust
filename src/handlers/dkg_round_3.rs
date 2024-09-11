@@ -54,9 +54,7 @@ pub fn handler_dkg_round_3(
     }
 
     // Try to deserialize the transaction
-    let min_tx = parse_tx_min(ctx.buffer_pos).map_err(|_| AppSW::TxParsingFail)?;
-    // Reset transaction context as we want to release space on the heap
-    ctx.reset();
+    let min_tx = parse_tx_min(&ctx.buffer)?;
 
     let (key_package, public_key_package, group_secret_key)
         = compute_dkg_round_3_min(&min_tx).map_err(|_| AppSW::DkgRound3Fail)?;
@@ -68,95 +66,96 @@ pub fn handler_dkg_round_3(
 }
 
 #[inline(never)]
-fn parse_tx_min(max_buffer_pos: usize) -> Result<MinTx, &'static str>{
+fn parse_tx_min(buffer: &Buffer) -> Result<MinTx, AppSW>{
     zlog_stack("start parse_tx_min round3\0");
 
     let mut tx_pos:usize = 0;
 
-    let identity_index = Buffer.get_element(tx_pos);
+    let identity_index = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
     // Round 1 public packages
-    let elements = Buffer.get_element(tx_pos);
+    let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
+    let len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
 
     let mut round_1_packages = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
         zlog_stack("start parse_round_1 - e\0");
-        let package = Buffer.get_slice(tx_pos,tx_pos+len).to_vec();
+        let package = buffer.get_slice(tx_pos,tx_pos+len)?;
         tx_pos += len;
 
         zlog_stack("push parse_round_1 - e\0");
-        round_1_packages.push(package);
+        round_1_packages.push(package.to_vec());
         zlog_stack("done parse_round_1 - e\0");
     }
 
     // Round 2 public packages
-    let elements = Buffer.get_element(tx_pos);
+    let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
+    let len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
 
     let mut round_2_packages = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
         zlog_stack("start parse_round_2 - e\0");
-        let r2_package = Buffer.get_slice(tx_pos,tx_pos+len).to_vec();
+        let r2_package = buffer.get_slice(tx_pos,tx_pos+len)?;
         tx_pos += len;
 
         zlog_stack("push parse_round_2 - e\0");
-        round_2_packages.push(r2_package);
+        round_2_packages.push(r2_package.to_vec());
         zlog_stack("done parse_round_2 - e\0");
     }
 
     // round 2 secret pkg
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
+    let len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
 
-    let round_2_secret_package = Buffer.get_slice(tx_pos,tx_pos+len).to_vec();
+    let round_2_secret_package_slice = buffer.get_slice(tx_pos,tx_pos+len)?;
+    let round_2_secret_package = round_2_secret_package_slice.to_vec();
     tx_pos += len;
 
     // participants
-    let elements = Buffer.get_element(tx_pos);
+    let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
+    let len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
 
     let mut participants = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
         zlog_stack("start parse participants - e\0");
-        let participant = Buffer.get_slice(tx_pos,tx_pos+len).to_vec();
+        let participant = buffer.get_slice(tx_pos,tx_pos+len)?;
         tx_pos += len;
 
         zlog_stack("push parse participants - e\0");
-        participants.push(participant);
+        participants.push(participant.to_vec());
         zlog_stack("done parse participants - e\0");
     }
 
     // gsk bytes
-    let elements = Buffer.get_element(tx_pos);
+    let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let len = (((Buffer.get_element(tx_pos) as u16) << 8) | (Buffer.get_element(tx_pos+1) as u16)) as usize;
+    let len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
 
     let mut gsk_bytes = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
         zlog_stack("start parse gsk - e\0");
-        let gsk = Buffer.get_slice(tx_pos,tx_pos+len).to_vec();
+        let gsk = buffer.get_slice(tx_pos,tx_pos+len)?;
         tx_pos += len;
 
         zlog_stack("push parse sgk - e\0");
-        gsk_bytes.push(gsk);
+        gsk_bytes.push(gsk.to_vec());
         zlog_stack("done parse gsk - e\0");
     }
 
-    if tx_pos != max_buffer_pos {
-        return Err("invalid payload");
+    if tx_pos != buffer.pos {
+        return Err(AppSW::InvalidPayload);
     }
 
     zlog_stack("done parse_tx round3_min\0");
@@ -199,7 +198,7 @@ fn save_response_min(key_package: KeyPackage, public_key_package: FrostPublicKey
     DkgKeys.set_u16(2, pos as u16);
     pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
     DkgKeys.set_u16(4, pos as u16);
-    pos = DkgKeys.set_slice_with_len(pos, public_key_package.serialize().unwrap().as_slice());
+    DkgKeys.set_slice_with_len(pos, public_key_package.serialize().unwrap().as_slice());
 
     // TODO check that last pos is not bigger than dkg_keys buffer
 }
