@@ -31,6 +31,8 @@ use ironfish_frost::participant::Identity;
 use crate::nvm::dkg_keys::DkgKeys;
 
 const MAX_APDU_SIZE: usize = 253;
+const IDENTITY_LEN: usize = 129;
+const TX_HASH_LEN: usize = 32;
 
 #[inline(never)]
 pub fn handler_dkg_commitment(
@@ -45,8 +47,8 @@ pub fn handler_dkg_commitment(
         return Ok(());
     }
 
-    let (identities, tx_hash) = parse_tx(ctx.buffer_pos);
-    let key_package = load_key_package();
+    let (identities, tx_hash) = parse_tx(&ctx.buffer)?;
+    let key_package = load_key_package()?;
 
     let nonces = deterministic_signing_nonces(
         key_package.signing_share(),
@@ -62,34 +64,43 @@ pub fn handler_dkg_commitment(
 
 
 #[inline(never)]
-fn load_key_package() -> KeyPackage{
+fn load_key_package() -> Result<KeyPackage, AppSW>{
     zlog_stack("start load_key_package\0");
 
     let start = DkgKeys.get_u16(0);
     let len = DkgKeys.get_u16(start);
 
-    KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
+    let package = KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).map_err(|_| AppSW::InvalidKeyPackage)?;
+
+    Ok(package)
 }
 
 #[inline(never)]
-fn parse_tx(max_buffer_pos: usize) -> (Vec<Identity>, &'static [u8]){
+fn parse_tx(buffer: &Buffer) -> Result<(Vec<Identity>, &[u8]), AppSW>{
     zlog_stack("start parse_tx\0");
 
     let mut tx_pos = 0;
-    let elements = Buffer.get_element(tx_pos);
+    let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let mut identities:Vec<Identity> = Vec::new();
+    let mut identities:Vec<Identity> = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
-        let identity = Identity::deserialize_from(Buffer.get_slice(tx_pos,tx_pos+129)).unwrap();
-        tx_pos += 129;
+        let data = buffer.get_slice(tx_pos,tx_pos+IDENTITY_LEN)?;
+        let identity = Identity::deserialize_from(data).map_err(|_| AppSW::InvalidIdentity)?;
+        tx_pos += IDENTITY_LEN;
 
         identities.push(identity);
     }
 
-    let tx_hash = Buffer.get_slice(tx_pos, max_buffer_pos);
 
-    (identities, tx_hash)
+    let tx_hash = buffer.get_slice(tx_pos, tx_pos + TX_HASH_LEN)?;
+    tx_pos += TX_HASH_LEN;
+
+    if tx_pos != buffer.pos {
+        return Err(AppSW::InvalidPayload);
+    }
+
+    Ok((identities, tx_hash))
 }
 
 #[inline(never)]
@@ -107,7 +118,7 @@ fn send_apdu_chunks(comm: &mut Comm, data_vec: Vec<u8>) -> Result<(), AppSW> {
             zlog_stack("another send_apdu_chunks\0");
             comm.reply_ok();
             match comm.next_event() {
-                Event::Command(Instruction::DkgRound2 { chunk: 0 }) => {}
+                Event::Command(Instruction::DkgCommitment) => {}
                 _ => {},
             }
         }

@@ -24,13 +24,13 @@ pub fn accumulate_data(
     // the transaction if it is the last chunk.
     }
 
-    if ctx.buffer_pos + data.len() > BUFFER_SIZE {
+    if ctx.buffer.pos + data.len() > BUFFER_SIZE {
         return Err(AppSW::TxWrongLength);
     }
 
     // Append data to raw_tx
-    Buffer.set_slice(ctx.buffer_pos, data);
-    ctx.buffer_pos += data.len();
+    ctx.buffer.set_slice(ctx.buffer.pos, data)?;
+    ctx.buffer.pos += data.len();
 
     // If we expect more chunks, return
     if chunk == 1 {

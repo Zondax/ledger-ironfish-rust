@@ -43,7 +43,7 @@ pub fn handler_dkg_sign(
         return Ok(());
     }
 
-    let (frost_signing_package, nonces, randomizer) = parse_tx(ctx.buffer_pos);
+    let (frost_signing_package, nonces, randomizer) = parse_tx(&ctx.buffer)?;
     let key_package = load_key_package();
 
     zlog_stack("start signing\0");
@@ -72,28 +72,36 @@ fn load_key_package() -> KeyPackage{
 }
 
 #[inline(never)]
-fn parse_tx(_max_buffer_pos: usize) -> (SigningPackage, SigningNonces, Randomizer){
+fn parse_tx(buffer: &Buffer) -> Result<(SigningPackage, SigningNonces, Randomizer), AppSW>{
     zlog_stack("start parse_tx\0");
 
     let mut tx_pos = 0;
 
-    let frost_signing_package_len = Buffer.get_u16(tx_pos);
+    let frost_signing_package_len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
-    let frost_signing_package = SigningPackage::deserialize(Buffer.get_slice(tx_pos,tx_pos+frost_signing_package_len)).unwrap();
+
+    let data = buffer.get_slice(tx_pos,tx_pos+frost_signing_package_len)?;
+    let frost_signing_package = SigningPackage::deserialize(data).map_err(|_| AppSW::InvalidSigningPackage)?;
     tx_pos += frost_signing_package_len;
 
-    let nonces_len = Buffer.get_u16(tx_pos);
+    let nonces_len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
-    let nonces = SigningNonces::deserialize(Buffer.get_slice(tx_pos,tx_pos+nonces_len)).unwrap();
+
+    let data = buffer.get_slice(tx_pos,tx_pos+nonces_len)?;
+    let nonces = SigningNonces::deserialize(data).map_err(|_| AppSW::InvalidSigningNonces)?;
     tx_pos += nonces_len;
 
-    let pk_randomness_len = Buffer.get_u16(tx_pos);
+    let pk_randomness_len = buffer.get_u16(tx_pos)?;
     tx_pos +=2;
-    let randomizer = Randomizer::deserialize(Buffer.get_slice(tx_pos,tx_pos+pk_randomness_len)).unwrap();
 
-    // TODO check the read len is equal to the max buffer len
+    let data = buffer.get_slice(tx_pos,tx_pos+pk_randomness_len)?;
+    let randomizer = Randomizer::deserialize(data).map_err(|_| AppSW::InvalidRandomizer)?;
 
-    (frost_signing_package, nonces, randomizer)
+    if tx_pos != buffer.pos {
+        return Err(AppSW::InvalidPayload);
+    }
+
+    Ok((frost_signing_package, nonces, randomizer))
 }
 
 #[inline(never)]
@@ -109,7 +117,7 @@ fn send_apdu_chunks(comm: &mut Comm, data_vec: Vec<u8>) -> Result<(), AppSW> {
         if i < total_chunks - 1 {
             comm.reply_ok();
             match comm.next_event() {
-                Event::Command(Instruction::DkgRound2 { chunk: 0 }) => {}
+                Event::Command(Instruction::DkgSign) => {}
                 _ => {},
             }
         }
