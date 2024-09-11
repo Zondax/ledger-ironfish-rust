@@ -3,7 +3,7 @@ use ledger_device_sdk::nvm::*;
 use ledger_device_sdk::NVMData;
 use ironfish_frost::frost::keys::PublicKeyPackage as FrostPublicKeyPackage;
 use ironfish_frost::dkg::group_key::{GroupSecretKey, GROUP_SECRET_KEY_LEN};
-use ironfish_frost::participant::Identity;
+use ironfish_frost::participant::{Identity, IDENTITY_LEN};
 use alloc::vec::Vec;
 use crate::AppSW;
 use crate::utils::{zlog_stack};
@@ -123,10 +123,13 @@ impl DkgKeys {
         self.set_u16(0, DATA_STARTING_POS);
 
         let mut pos = DATA_STARTING_POS as usize;
+        self.set_u16(pos, (identities.len() * IDENTITY_LEN) as u16);
+        pos += 2;
+
         for i in identities.into_iter(){
             let slice = i.serialize();
-            pos = self.set_slice_with_len(DATA_STARTING_POS as usize, slice.as_slice());
-            pos += slice.len();
+            self.set_slice(pos, slice.as_slice());
+            pos += IDENTITY_LEN;
         }
 
         self.set_u16(MIN_SIGNERS_POS, pos as u16);
@@ -203,10 +206,28 @@ impl DkgKeys {
     }
 
     #[inline(never)]
-    pub fn load_identities(&self) -> Result<usize, AppSW>{
+    pub fn load_identities(&self) -> Result<Vec<Identity>, AppSW>{
         zlog_stack("start load_identities\0");
 
-        let start = self.get_u16(IDENTITIES_POS);
-        Ok(self.get_u16(start))
+        let mut start = self.get_u16(IDENTITIES_POS);
+        let len = self.get_u16(start);
+        start += 2;
+
+        let end = start + len;
+        let mut identities:Vec<Identity> = Vec::new();
+        while start < end {
+            let data = self.get_slice(start,start+IDENTITY_LEN);
+            let identity
+                = Identity::deserialize_from(data).map_err(|_| AppSW::InvalidIdentity)?;
+            start += IDENTITY_LEN;
+
+            identities.push(identity);
+        }
+
+        if start != end {
+            return Err(AppSW::InvalidPayload);
+        }
+
+        Ok(identities)
     }
 }

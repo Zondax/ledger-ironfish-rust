@@ -67,7 +67,7 @@ fn parse_tx(buffer: &Buffer) -> Result<Tx, AppSW>{
     let elements = buffer.get_element(tx_pos)?;
     tx_pos +=1;
 
-    let mut identities:Vec<Identity> = Vec::new();
+    let mut identities:Vec<Identity> = Vec::with_capacity(elements as usize);
     for _i in 0..elements {
         let data = buffer.get_slice(tx_pos,tx_pos+IDENTITY_LEN)?;
         let identity
