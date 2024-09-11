@@ -25,6 +25,7 @@ use crate::accumulator::accumulate_data;
 use crate::nvm::buffer::{Buffer};
 use crate::handlers::dkg_get_identity::compute_dkg_secret;
 use crate::context::TxContext;
+use crate::nvm::dkg_keys::DkgKeys;
 use crate::utils::{zlog, zlog_stack};
 
 const MAX_APDU_SIZE: usize = 253;
@@ -52,7 +53,9 @@ pub fn handler_dkg_round_1(
     let mut tx: Tx = parse_tx(&ctx.buffer)?;
     let dkg_secret = compute_dkg_secret(tx.identity_index);
 
-    compute_dkg_round_1(comm, &dkg_secret, &mut tx)
+    compute_dkg_round_1(comm, &dkg_secret, &mut tx)?;
+
+    DkgKeys.save_round_1_data(&tx.identities, tx.min_signers)
 }
 
 fn parse_tx(buffer: &Buffer) -> Result<Tx, AppSW>{

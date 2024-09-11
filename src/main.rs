@@ -105,7 +105,8 @@ pub enum AppSW {
     InvalidSigningNonces = 0xB013,
     InvalidIdentityIndex = 0xB014,
     InvalidKeyPackage = 0xB015,
-    InvalidPublicPackageRound1 = 0xB016,
+    InvalidPublicPackage = 0xB016,
+    InvalidGroupSecretKey = 0xB017,
     WrongApduLength = StatusWords::BadLen as u16,
     Ok = 0x9000,
 }

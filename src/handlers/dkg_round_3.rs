@@ -60,7 +60,7 @@ pub fn handler_dkg_round_3(
         = compute_dkg_round_3_min(&min_tx).map_err(|_| AppSW::DkgRound3Fail)?;
     drop(min_tx);
 
-    save_response_min(key_package, public_key_package, group_secret_key);
+    DkgKeys.save_keys(key_package, public_key_package, group_secret_key);
 
     Ok(())
 }
@@ -189,16 +189,4 @@ fn compute_dkg_round_3_min(min_tx: &MinTx) -> Result<(KeyPackage, FrostPublicKey
         r2,
         gsk,
     )
-}
-
-#[inline(never)]
-fn save_response_min(key_package: KeyPackage, public_key_package: FrostPublicKeyPackage, group_secret_key: GroupSecretKey) {
-    DkgKeys.set_u16(0, 6);
-    let mut pos = DkgKeys.set_slice_with_len(6, key_package.serialize().unwrap().as_slice());
-    DkgKeys.set_u16(2, pos as u16);
-    pos = DkgKeys.set_slice_with_len(pos, group_secret_key.as_slice());
-    DkgKeys.set_u16(4, pos as u16);
-    DkgKeys.set_slice_with_len(pos, public_key_package.serialize().unwrap().as_slice());
-
-    // TODO check that last pos is not bigger than dkg_keys buffer
 }

@@ -46,7 +46,7 @@ pub fn handler_dkg_nonces(
     }
 
     let (identities, tx_hash) = parse_tx(&ctx.buffer)?;
-    let key_package = load_key_package()?;
+    let key_package = DkgKeys.load_key_package()?;
 
     let nonces = deterministic_signing_nonces(
         key_package.signing_share(),
@@ -57,19 +57,6 @@ pub fn handler_dkg_nonces(
     let ser = nonces.serialize().unwrap();
 
     send_apdu_chunks(comm, ser)
-}
-
-
-#[inline(never)]
-fn load_key_package() -> Result<KeyPackage, AppSW>{
-    zlog_stack("start load_key_package\0");
-
-    let start = DkgKeys.get_u16(0);
-    let len = DkgKeys.get_u16(start);
-
-    let package = KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).map_err(|_| AppSW::InvalidKeyPackage)?;
-
-    Ok(package)
 }
 
 #[inline(never)]
