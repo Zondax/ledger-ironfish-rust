@@ -183,7 +183,7 @@ describe.each(models)('DKG', function (m) {
                     });
 
                     if(!result.publicAddress)
-                        throw new Error("no commitment found")
+                        throw new Error("no publicAddress found")
 
                     expect(isValidPublicAddress(result.publicAddress.toString("hex")))
                     pks.push(result.publicAddress.toString("hex"));
@@ -274,6 +274,7 @@ describe.each(models)('DKG', function (m) {
                     commitments.push(commitment.commitment);
                 }
 
+                console.log(commitments.map(c => c.toString("hex")))
                 const signingPackageHex = unsignedTx.signingPackage(commitments.map(c => c.toString("hex")))
                 const signingPackage = new multisig.SigningPackage(Buffer.from(signingPackageHex, "hex"))
 
