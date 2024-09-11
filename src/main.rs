@@ -31,8 +31,11 @@ mod ironfish {
     pub mod sapling;
     pub mod view_keys;
 }
+pub mod constants;
 
-pub use parser::Spends;
+pub use parser::{
+    Burn, FromBytes, Mint, ObjectList, Output, Spend, Transaction, TransactionVersion,
+};
 
 mod handlers;
 pub use handlers::*;
