@@ -18,7 +18,6 @@
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
 use ironfish_frost::frost::keys::KeyPackage;
-use ironfish_frost::signing_commitment;
 use ledger_device_sdk::io::{Comm, Event};
 use serde::Serialize;
 use crate::accumulator::accumulate_data;
@@ -26,7 +25,6 @@ use crate::nvm::buffer::{Buffer};
 use crate::context::TxContext;
 use crate::utils::{zlog_stack};
 use ironfish_frost::nonces::deterministic_signing_nonces;
-use ironfish_frost::frost::round1::SigningCommitments;
 use ironfish_frost::participant::Identity;
 use crate::nvm::dkg_keys::DkgKeys;
 
@@ -35,12 +33,12 @@ const IDENTITY_LEN: usize = 129;
 const TX_HASH_LEN: usize = 32;
 
 #[inline(never)]
-pub fn handler_dkg_commitment(
+pub fn handler_dkg_nonces(
     comm: &mut Comm,
     chunk: u8,
     ctx: &mut TxContext,
 ) -> Result<(), AppSW> {
-    zlog_stack("start handler_commitment\0");
+    zlog_stack("start handler_dkg_nonces\0");
 
     accumulate_data(comm, chunk, ctx)?;
     if !ctx.done {
@@ -56,8 +54,7 @@ pub fn handler_dkg_commitment(
         &identities,
     );
 
-    let signing_commitment:SigningCommitments  = (&nonces).into();
-    let ser = signing_commitment.serialize().unwrap();
+    let ser = nonces.serialize().unwrap();
 
     send_apdu_chunks(comm, ser)
 }
@@ -118,7 +115,7 @@ fn send_apdu_chunks(comm: &mut Comm, data_vec: Vec<u8>) -> Result<(), AppSW> {
             zlog_stack("another send_apdu_chunks\0");
             comm.reply_ok();
             match comm.next_event() {
-                Event::Command(Instruction::DkgCommitment) => {}
+                Event::Command(Instruction::DkgNonces {chunk: 0}) => {}
                 _ => {},
             }
         }

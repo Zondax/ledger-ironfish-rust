@@ -38,7 +38,8 @@ mod handlers {
     pub mod dkg_round_2;
     pub mod dkg_round_3;
     pub mod dkg_get_keys;
-    pub mod dkg_commitment;
+    pub mod dkg_commitments;
+    pub mod dkg_nonces;
     pub mod dkg_sign;
 }
 
@@ -58,7 +59,8 @@ use handlers::{
     dkg_round_3::handler_dkg_round_3,
     dkg_get_keys::handler_dkg_get_keys,
     get_version::handler_get_version,
-    dkg_commitment::handler_dkg_commitment,
+    dkg_commitments::handler_dkg_commitments,
+    dkg_nonces::handler_dkg_nonces,
     dkg_sign::handler_dkg_sign,
 };
 
@@ -122,9 +124,10 @@ pub enum Instruction {
     DkgRound1 { chunk: u8 },
     DkgRound2 { chunk: u8 },
     DkgRound3 { chunk: u8 },
-    DkgCommitment { chunk: u8 },
+    DkgCommitments { chunk: u8 },
     DkgSign { chunk: u8 },
     DkgGetKeys { key_type: u8 },
+    DkgNonces { chunk: u8 },
 }
 
 impl TryFrom<ApduHeader> for Instruction {
@@ -162,7 +165,7 @@ impl TryFrom<ApduHeader> for Instruction {
                 })
             },
             (20, 0..=2, 0) => {
-                Ok(Instruction::DkgCommitment {
+                Ok(Instruction::DkgCommitments {
                     chunk: value.p1
                 })
             },
@@ -174,6 +177,11 @@ impl TryFrom<ApduHeader> for Instruction {
             (22, 0, 0..=2) => Ok(Instruction::DkgGetKeys{
                 key_type: value.p2
             }),
+            (23, 0..=2, 0) => {
+                Ok(Instruction::DkgNonces {
+                    chunk: value.p1
+                })
+            },
             (3..=4, _, _) => Err(AppSW::WrongP1P2),
             (17..=22, _, _) => Err(AppSW::WrongP1P2),
             (_, _, _) => Err(AppSW::InsNotSupported),
@@ -235,8 +243,9 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgRound1 { chunk } => handler_dkg_round_1(comm, *chunk, ctx),
         Instruction::DkgRound2 { chunk } => handler_dkg_round_2(comm, *chunk, ctx),
         Instruction::DkgRound3 { chunk } => handler_dkg_round_3(comm, *chunk, ctx),
-        Instruction::DkgCommitment { chunk } => handler_dkg_commitment(comm, *chunk, ctx),
+        Instruction::DkgCommitments { chunk } => handler_dkg_commitments(comm, *chunk, ctx),
         Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
-        Instruction::DkgGetKeys {key_type} => handler_dkg_get_keys(comm, key_type)
+        Instruction::DkgGetKeys {key_type} => handler_dkg_get_keys(comm, key_type),
+        Instruction::DkgNonces { chunk } => handler_dkg_nonces(comm, *chunk, ctx),
     }
 }

@@ -92,6 +92,7 @@ describe.each(models)('DKG', function (m) {
             let round1s: any[] = [];
             let round2s: any[] = [];
             let commitments: any[] = [];
+            let nonces: any[] = [];
             let pks: any[] = [];
             let viewKeys: any[] = [];
             let proofKeys: any[] = [];
@@ -254,28 +255,51 @@ describe.each(models)('DKG', function (m) {
                 const unsignedTx = new UnsignedTransaction(tx);
 
                 for(let i = 0; i < participants; i++){
-                    const commitment = await runMethod(globalSims, i, async (app: IronfishApp) => {
-                        let commitment = await app.dkgGetCommitment(
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgGetCommitments(
                             PATH,
                             identities,
                             unsignedTx.hash().toString("hex")
                         );
 
-                        expect(i + " " + commitment.returnCode.toString(16)).toEqual(i + " " + "9000")
-                        expect(commitment.errorMessage).toEqual('No errors')
-                        expect(commitment.commitment).toBeTruthy()
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect(result.commitments).toBeTruthy()
 
-                        return commitment
+                        return result
                     });
 
-                    if(!commitment.commitment)
+                    if(!result.commitments)
                         throw new Error("no commitment found")
 
-                    commitments.push(commitment.commitment);
+                    commitments.push(result.commitments.toString("hex"));
                 }
 
-                console.log(commitments.map(c => c.toString("hex")))
-                const signingPackageHex = unsignedTx.signingPackage(commitments.map(c => c.toString("hex")))
+
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgGetNonces(
+                            PATH,
+                            identities,
+                            unsignedTx.hash().toString("hex")
+                        );
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect(result.nonces).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.nonces)
+                        throw new Error("no nonces found")
+
+                    nonces.push(result.nonces.toString("hex"));
+                }
+
+                console.log(nonces.map(c => c.toString("hex")))
+
+                const signingPackageHex = unsignedTx.signingPackageFromRaw(identities, commitments)
                 const signingPackage = new multisig.SigningPackage(Buffer.from(signingPackageHex, "hex"))
 
                 for(let i = 0; i < participants; i++){
@@ -284,7 +308,7 @@ describe.each(models)('DKG', function (m) {
                             PATH,
                             unsignedTx.publicKeyRandomness(),
                             signingPackage.frostSigningPackage().toString("hex"),
-                            commitments[i].toString("hex")
+                            nonces[i].toString("hex")
                         );
 
                         expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")

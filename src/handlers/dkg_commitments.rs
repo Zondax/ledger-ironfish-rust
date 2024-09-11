@@ -17,92 +17,90 @@
 
 use crate::{AppSW, Instruction};
 use alloc::vec::Vec;
-use ironfish_frost::{frost::SigningPackage, frost::Randomizer};
 use ironfish_frost::frost::keys::KeyPackage;
-use ironfish_frost::frost::round1::SigningNonces;
-use ironfish_frost::frost::round2;
+use ironfish_frost::signing_commitment;
 use ledger_device_sdk::io::{Comm, Event};
+use serde::Serialize;
 use crate::accumulator::accumulate_data;
 use crate::nvm::buffer::{Buffer};
 use crate::context::TxContext;
 use crate::utils::{zlog_stack};
+use ironfish_frost::nonces::deterministic_signing_nonces;
+use ironfish_frost::frost::round1::SigningCommitments;
+use ironfish_frost::participant::Identity;
 use crate::nvm::dkg_keys::DkgKeys;
 
 const MAX_APDU_SIZE: usize = 253;
+const IDENTITY_LEN: usize = 129;
+const TX_HASH_LEN: usize = 32;
 
 #[inline(never)]
-pub fn handler_dkg_sign(
+pub fn handler_dkg_commitments(
     comm: &mut Comm,
     chunk: u8,
     ctx: &mut TxContext,
 ) -> Result<(), AppSW> {
-    zlog_stack("start handler_dkg_sign\0");
+    zlog_stack("start handler_dkg_commitments\0");
 
     accumulate_data(comm, chunk, ctx)?;
     if !ctx.done {
         return Ok(());
     }
 
-    let (frost_signing_package, nonces, randomizer) = parse_tx(&ctx.buffer)?;
-    let key_package = load_key_package();
+    let (identities, tx_hash) = parse_tx(&ctx.buffer)?;
+    let key_package = load_key_package()?;
 
-    zlog_stack("start signing\0");
-    let signature = round2::sign(
-        &frost_signing_package,
-        &nonces,
-        &key_package,
-        randomizer,
+    let nonces = deterministic_signing_nonces(
+        key_package.signing_share(),
+        tx_hash,
+        &identities,
     );
 
-    zlog_stack("unwrap sig result\0");
-    let sig = signature.unwrap().serialize();
+    let signing_commitment:SigningCommitments  = (&nonces).into();
+    let ser = signing_commitment.serialize().unwrap();
 
-    send_apdu_chunks(comm, sig)
+    send_apdu_chunks(comm, ser)
 }
 
 
 #[inline(never)]
-fn load_key_package() -> KeyPackage{
+fn load_key_package() -> Result<KeyPackage, AppSW>{
     zlog_stack("start load_key_package\0");
 
     let start = DkgKeys.get_u16(0);
     let len = DkgKeys.get_u16(start);
 
-    KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).unwrap()
+    let package = KeyPackage::deserialize(DkgKeys.get_slice(start+2, start+2+len)).map_err(|_| AppSW::InvalidKeyPackage)?;
+
+    Ok(package)
 }
 
 #[inline(never)]
-fn parse_tx(buffer: &Buffer) -> Result<(SigningPackage, SigningNonces, Randomizer), AppSW>{
+fn parse_tx(buffer: &Buffer) -> Result<(Vec<Identity>, &[u8]), AppSW>{
     zlog_stack("start parse_tx\0");
 
     let mut tx_pos = 0;
+    let elements = buffer.get_element(tx_pos)?;
+    tx_pos +=1;
 
-    let pk_randomness_len = buffer.get_u16(tx_pos)?;
-    tx_pos +=2;
+    let mut identities:Vec<Identity> = Vec::with_capacity(elements as usize);
+    for _i in 0..elements {
+        let data = buffer.get_slice(tx_pos,tx_pos+IDENTITY_LEN)?;
+        let identity = Identity::deserialize_from(data).map_err(|_| AppSW::InvalidIdentity)?;
+        tx_pos += IDENTITY_LEN;
 
-    let data = buffer.get_slice(tx_pos,tx_pos+pk_randomness_len)?;
-    let randomizer = Randomizer::deserialize(data).map_err(|_| AppSW::InvalidRandomizer)?;
-    tx_pos +=pk_randomness_len;
+        identities.push(identity);
+    }
 
-    let frost_signing_package_len = buffer.get_u16(tx_pos)?;
-    tx_pos +=2;
 
-    let data = buffer.get_slice(tx_pos,tx_pos+frost_signing_package_len)?;
-    let frost_signing_package = SigningPackage::deserialize(data).map_err(|_| AppSW::InvalidSigningPackage)?;
-    tx_pos += frost_signing_package_len;
-
-    let nonces_len = buffer.get_u16(tx_pos)?;
-    tx_pos +=2;
-
-    let data = buffer.get_slice(tx_pos,tx_pos+nonces_len)?;
-    let nonces = SigningNonces::deserialize(data).map_err(|_| AppSW::InvalidSigningNonces)?;
-    tx_pos += nonces_len;
+    let tx_hash = buffer.get_slice(tx_pos, tx_pos + TX_HASH_LEN)?;
+    tx_pos += TX_HASH_LEN;
 
     if tx_pos != buffer.pos {
         return Err(AppSW::InvalidPayload);
     }
 
-    Ok((frost_signing_package, nonces, randomizer))
+    Ok((identities, tx_hash))
 }
 
 #[inline(never)]
@@ -113,12 +111,14 @@ fn send_apdu_chunks(comm: &mut Comm, data_vec: Vec<u8>) -> Result<(), AppSW> {
     let total_chunks = (data.len() + MAX_APDU_SIZE - 1) / MAX_APDU_SIZE;
 
     for (i, chunk) in data.chunks(MAX_APDU_SIZE).enumerate() {
+        zlog_stack("iter send_apdu_chunks\0");
         comm.append(chunk);
 
         if i < total_chunks - 1 {
+            zlog_stack("another send_apdu_chunks\0");
             comm.reply_ok();
             match comm.next_event() {
-                Event::Command(Instruction::DkgSign {chunk: 0}) => {}
+                Event::Command(Instruction::DkgCommitments {chunk: 0}) => {}
                 _ => {},
             }
         }
