@@ -41,6 +41,7 @@ mod handlers {
     pub mod dkg_commitments;
     pub mod dkg_nonces;
     pub mod dkg_sign;
+    pub mod dkg_get_public_package;
 }
 
 mod nvm {
@@ -77,6 +78,7 @@ extern crate alloc;
 #[cfg(any(target_os = "stax", target_os = "flex"))]
 use ledger_device_sdk::nbgl::{init_comm, NbglReviewStatus, StatusType};
 use crate::context::TxContext;
+use crate::handlers::dkg_get_public_package::handler_dkg_get_public_package;
 
 // Application status words.
 #[repr(u16)]
@@ -122,6 +124,7 @@ pub enum Instruction {
     GetVersion,
     GetAppName,
     DkgGetIdentity,
+    DkgGetPublicPackage,
     DkgRound1 { chunk: u8 },
     DkgRound2 { chunk: u8 },
     DkgRound3 { chunk: u8 },
@@ -182,6 +185,9 @@ impl TryFrom<ApduHeader> for Instruction {
                 Ok(Instruction::DkgNonces {
                     chunk: value.p1
                 })
+            },
+            (24, 0..=2, 0) => {
+                Ok(Instruction::DkgGetPublicPackage)
             },
             (3..=4, _, _) => Err(AppSW::WrongP1P2),
             (17..=22, _, _) => Err(AppSW::WrongP1P2),
@@ -248,5 +254,6 @@ fn handle_apdu(comm: &mut Comm, ins: &Instruction, ctx: &mut TxContext) -> Resul
         Instruction::DkgSign { chunk } => handler_dkg_sign(comm, *chunk, ctx),
         Instruction::DkgGetKeys {key_type} => handler_dkg_get_keys(comm, key_type),
         Instruction::DkgNonces { chunk } => handler_dkg_nonces(comm, *chunk, ctx),
+        Instruction::DkgGetPublicPackage => handler_dkg_get_public_package(comm),
     }
 }

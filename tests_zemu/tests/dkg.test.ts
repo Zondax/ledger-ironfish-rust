@@ -20,7 +20,6 @@ import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
 import {
     isValidPublicAddress,
     multisig,
-    Transaction,
     TransactionPosted,
     UnsignedTransaction
 } from '@ironfish/rust-nodejs'
@@ -56,7 +55,7 @@ describe.each(models)('DKG', function (m) {
         }
     })
 
-    describe.each([{p:4, min:2}])(`${m.name} - participants`, function ({p: participants, min: minSigners}){
+    describe.each([{p:2, min:2}])(`${m.name} - participants`, function ({p: participants, min: minSigners}){
         it("p: " + participants + " - min: " + minSigners, async function(){
             const checkSimRequired = (sims: Zemu[], i:number): {sim: Zemu, created:boolean} => {
                 let created = false;
@@ -100,6 +99,7 @@ describe.each(models)('DKG', function (m) {
             let round2s: any[] = [];
             let commitments: any[] = [];
             let nonces: any[] = [];
+            let publicPackages: any[] = [];
             let pks: any[] = [];
             let viewKeys: any[] = [];
             let proofKeys: any[] = [];
@@ -174,6 +174,23 @@ describe.each(models)('DKG', function (m) {
 
                         return round3
                     });
+                }
+
+                for(let i = 0; i < participants; i++){
+                    const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
+                        let result = await app.dkgGetPublicPackage();
+
+                        expect(i + " " + result.returnCode.toString(16)).toEqual(i + " " + "9000")
+                        expect(result.errorMessage).toEqual('No errors')
+                        expect(result.publicPackage).toBeTruthy()
+
+                        return result
+                    });
+
+                    if(!result.publicPackage)
+                        throw new Error("no publicPackage found")
+
+                    publicPackages.push(result.publicPackage.toString("hex"));
                 }
 
                 // Generate keys from the multisig DKG process just finalized
@@ -332,9 +349,14 @@ describe.each(models)('DKG', function (m) {
                 }
 
 
-                //let signedTxRaw = aggregateRawSignatureShares(identities, "" /*multisig public package from device*/,  unsignedTxRaw.toString("hex"), signingPackage.frostSigningPackage().toString("hex"), signatures)
-                //const signedTx = new TransactionPosted(signedTxRaw)
-                //expect(signedTx.spendsLength()).toBe(1);
+                let signedTxRaw = aggregateRawSignatureShares(
+                    identities,
+                    publicPackages[0],
+                    unsignedTxRaw.toString("hex"),
+                    signingPackage.frostSigningPackage().toString("hex"),
+                    signatures)
+                const signedTx = new TransactionPosted(signedTxRaw)
+                expect(signedTx.spendsLength()).toBe(1);
 
                 //expect(signedTx.outputsLength.len(), 3);
                 //expect(signedTx.mintsLength.len(), 1);
