@@ -3,7 +3,7 @@ use ledger_device_sdk::NVMData;
 use crate::AppSW;
 
 // This is necessary to store the object in NVM and not in RAM
-pub const BUFFER_SIZE: usize = 3000;
+pub const BUFFER_SIZE: usize = 5000;
 
 #[link_section = ".nvm_data"]
 static mut DATA: NVMData<AlignedStorage<[u8; BUFFER_SIZE]>> =
