@@ -29,6 +29,9 @@ getrandom = { version = "0.2", features = ["custom"] }
 opt-level = "s"
 lto = true
 
+# heap 15k, opt-level=z -> 3 participants fail on signing because of heap fragmentation, app size XXX
+# heap 16.3k, opt-level=s -> 3 participants work, app size 680K
+
 [features]
 default = ["pending_review_screen"]
 pending_review_screen = []
