@@ -1,4 +1,4 @@
-import {Asset, LATEST_TRANSACTION_VERSION, Note, Transaction, UnsignedTransaction, makeTestWitness} from '@ironfish/rust-nodejs'
+import {Asset, LATEST_TRANSACTION_VERSION, Note, Transaction, makeTestWitness} from '@ironfish/rust-nodejs'
 
 export const buildTx = (publicAddress: string, viewKeys: any, proofKey: any) => {
     console.log("here")
