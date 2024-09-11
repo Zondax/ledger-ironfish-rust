@@ -24,7 +24,9 @@ ironfish-frost = { git = "https://github.com/Zondax/ironfish-frost.git", rev = "
 getrandom = { version = "0.2", features = ["custom"] }
 
 [profile.release]
-opt-level = 'z'
+# changed from z (default on template) to s in order to reduce stack size
+# it will increase the binary size, but it is something we can afford here
+opt-level = "s"
 lto = true
 
 [features]

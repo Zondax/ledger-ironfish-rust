@@ -2,7 +2,7 @@
 runner = "speculos -a=1 --model=nanosp"
 
 [env]
-HEAP_SIZE = "15000"
+HEAP_SIZE = "16300"
 
 [unstable]
 build-std = ["core", "alloc"]

@@ -17,8 +17,15 @@
 import Zemu from '@zondax/zemu'
 import {defaultOptions, models, PATH} from './common'
 import IronfishApp, {IronfishKeys} from '@zondax/ledger-ironfish'
-import {isValidPublicAddress, multisig, UnsignedTransaction} from '@ironfish/rust-nodejs'
+import {
+    isValidPublicAddress,
+    multisig,
+    Transaction,
+    TransactionPosted,
+    UnsignedTransaction
+} from '@ironfish/rust-nodejs'
 import {buildTx} from "./utils";
+import aggregateRawSignatureShares = multisig.aggregateRawSignatureShares;
 
 jest.setTimeout(4500000)
 
@@ -251,8 +258,8 @@ describe.each(models)('DKG', function (m) {
 
                 // Craft new tx, to get the tx hash and the public randomness
                 // Pass those values to the following commands
-                const tx = buildTx(pks[0], viewKeys[0], proofKeys[0]);
-                const unsignedTx = new UnsignedTransaction(tx);
+                const unsignedTxRaw = buildTx(pks[0], viewKeys[0], proofKeys[0]);
+                const unsignedTx = new UnsignedTransaction(unsignedTxRaw);
 
                 for(let i = 0; i < participants; i++){
                     const result = await runMethod(globalSims, i, async (app: IronfishApp) => {
@@ -321,8 +328,17 @@ describe.each(models)('DKG', function (m) {
                     if(!result.signature)
                         throw new Error("no signature found")
 
-                    signatures.push(result.signature);
+                    signatures.push(result.signature.toString("hex"));
                 }
+
+
+                //let signedTxRaw = aggregateRawSignatureShares(identities, "" /*multisig public package from device*/,  unsignedTxRaw.toString("hex"), signingPackage.frostSigningPackage().toString("hex"), signatures)
+                //const signedTx = new TransactionPosted(signedTxRaw)
+                //expect(signedTx.spendsLength()).toBe(1);
+
+                //expect(signedTx.outputsLength.len(), 3);
+                //expect(signedTx.mintsLength.len(), 1);
+                //expect(signedTx.burnsLength.len(), 0);
             } finally {
                 for (let i = 0; i < globalSims.length; i++)
                     await globalSims[i].close()
