@@ -52,7 +52,7 @@ jobs:
       - name: Checkout ironfish repo
         run: |
           git clone https://github.com/iron-fish/ironfish.git
-          git checkout feat/hughy/make-test-witness
+          git checkout origin/feat/hughy/make-test-witness
       - name: Build ironfish
         run: |
           cd ironfish
