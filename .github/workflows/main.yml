@@ -52,28 +52,11 @@ jobs:
           cargo install cargo-ledger
           cargo ledger setup
           pip install ledgerwallet
-      - name: Checkout and build ironfish repo
-        run: |
-          git clone https://github.com/iron-fish/ironfish.git
-          cd ironfish
-          git fetch --all
-          git checkout -b feat/hughy/make-test-witness origin/feat/hughy/make-test-witness
-          yarn install
-          cd ironfish-rust-nodejs
-          yarn link
       - name: Build app
         run: |
           export PATH=/home/runner/.local/bin:$PATH
           make build
       - name: Install zemu deps
-        run: |
-          cd js
-          yarn unlink @ironfish/rust-nodejs
-          yarn link @ironfish/rust-nodejs
-          cd ../tests_zemu
-          yarn unlink @ironfish/rust-nodejs
-          yarn link @ironfish/rust-nodejs
-          cd ..
-          make zemu_install
+        run: make zemu_install
       - name: Run tests
         run: make zemu_test
