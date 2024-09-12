@@ -45,10 +45,11 @@ jobs:
         run: |
           npm install -g yarn
           npm install -g yalc
-      - name: Install cargo ledger and deps
+      - name: Install ledger deps
         run: |
           cargo install cargo-ledger
           cargo ledger setup
+          pip install ledgerwallet
       - name: Checkout and build ironfish repo
         run: |
           git clone https://github.com/iron-fish/ironfish.git
