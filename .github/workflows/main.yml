@@ -44,6 +44,10 @@ jobs:
         run: |
           npm install -g yarn
           npm install -g yalc
+      - name: Install cargo ledger and deps
+        run: |
+          cargo install cargo-ledger
+          cargo ledger setup
       - name: Checkout ironfish repo
         run: git clone https://github.com/iron-fish/ironfish.git
       - name: Build ironfish
@@ -52,3 +56,6 @@ jobs:
           yarn install
           cd ironfish-rust-nodejs
           yalc publish
+      - name: Build app
+        run: |
+          make build
