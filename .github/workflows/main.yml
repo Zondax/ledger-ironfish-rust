@@ -33,6 +33,9 @@ jobs:
         with:
           toolchain: nightly-2023-11-10
           components: rust-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -60,7 +63,9 @@ jobs:
           cd ironfish-rust-nodejs
           yalc publish
       - name: Build app
-        run: make build
+        run: |
+          export PATH=/home/runner/.local/bin:$PATH
+          make build
       - name: Install zemu deps
         run: |
           cd js
