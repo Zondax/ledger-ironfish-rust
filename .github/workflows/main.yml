@@ -68,8 +68,10 @@ jobs:
       - name: Install zemu deps
         run: |
           cd js
+          yarn unlink @ironfish/rust-nodejs
           yarn link @ironfish/rust-nodejs
           cd ../tests_zemu
+          yarn unlink @ironfish/rust-nodejs
           yarn link @ironfish/rust-nodejs
           cd ..
           make zemu_install
