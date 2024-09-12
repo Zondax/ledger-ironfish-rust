@@ -49,20 +49,17 @@ jobs:
         run: |
           cargo install cargo-ledger
           cargo ledger setup
-      - name: Checkout ironfish repo
+      - name: Checkout and build ironfish repo
         run: |
           git clone https://github.com/iron-fish/ironfish.git
+          cd ironfish
           git fetch --all
           git checkout -b feat/hughy/make-test-witness origin/feat/hughy/make-test-witness
-      - name: Build ironfish
-        run: |
-          cd ironfish
           yarn install
           cd ironfish-rust-nodejs
           yalc publish
       - name: Build app
-        run: |
-          make build
+        run: make build
       - name: Install zemu deps
         run: |
           cd js
