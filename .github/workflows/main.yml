@@ -59,6 +59,7 @@ jobs:
           git fetch --all
           git checkout -b feat/hughy/make-test-witness origin/feat/hughy/make-test-witness
           yarn install
+          cd ironfish-rust-nodejs
           yarn link
       - name: Build app
         run: |
