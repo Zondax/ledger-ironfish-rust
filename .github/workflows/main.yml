@@ -44,10 +44,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      - name: Install yarn and yalc
+      - name: Install yarn
         run: |
           npm install -g yarn
-          npm install -g yalc
       - name: Install ledger deps
         run: |
           cargo install cargo-ledger
@@ -60,8 +59,7 @@ jobs:
           git fetch --all
           git checkout -b feat/hughy/make-test-witness origin/feat/hughy/make-test-witness
           yarn install
-          cd ironfish-rust-nodejs
-          yalc publish
+          yarn link
       - name: Build app
         run: |
           export PATH=/home/runner/.local/bin:$PATH
@@ -69,9 +67,9 @@ jobs:
       - name: Install zemu deps
         run: |
           cd js
-          yalc add @ironfish/rust-nodejs
+          yarn link @ironfish/rust-nodejs
           cd ../tests_zemu
-          yalc add @ironfish/rust-nodejs
+          yarn link @ironfish/rust-nodejs
           cd ..
           make zemu_install
       - name: Run tests
