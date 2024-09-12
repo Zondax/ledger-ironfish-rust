@@ -32,6 +32,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly-2023-11-10
+          components: rust-src
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -49,7 +50,9 @@ jobs:
           cargo install cargo-ledger
           cargo ledger setup
       - name: Checkout ironfish repo
-        run: git clone https://github.com/iron-fish/ironfish.git
+        run: |
+          git clone https://github.com/iron-fish/ironfish.git
+          git checkout feat/hughy/make-test-witness
       - name: Build ironfish
         run: |
           cd ironfish
@@ -59,3 +62,13 @@ jobs:
       - name: Build app
         run: |
           make build
+      - name: Install zemu deps
+        run: |
+          cd js
+          yalc add @ironfish/rust-nodejs
+          cd ../tests_zemu
+          yalc add @ironfish/rust-nodejs
+          cd ..
+          make zemu_install
+      - name: Run tests
+        run: make zemu_test
